@@ -21,4 +21,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('clinic/', include("clinic.urls"), name='clinic'),
     path('users/', include("user.urls"), name='user'),
+    # Обов'язково для allauth соцмереж (навіть якщо працюємо суто як API)
+    path('accounts/', include('allauth.urls')),
 ]
