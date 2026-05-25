@@ -39,11 +39,23 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'user',
     'clinic',
-    'rest_framework'
+    'rest_framework',
+    # ... твої додатки
+    'django.contrib.sites',  # Обов'язково для allauth
+    'rest_framework.authtoken',
+    'dj_rest_auth',
+    'dj_rest_auth.registration',  # Для реєстрації нових юзерів
+
+    # Allauth
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',  # Only if using social auth
+    'allauth.socialaccount.providers.google',  # Провайдер Google
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'allauth.account.middleware.AccountMiddleware',  # Allauth
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -119,3 +131,34 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 AUTH_USER_MODEL = 'user.User'
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    )
+}
+
+
+#####################################google auth
+SITE_ID = 1
+
+# Налаштування rest-auth для використання JWT замість звичайних токенів
+REST_USE_JWT = True
+JWT_AUTH_COOKIE = 'my-app-auth'
+
+
+# Вимикаємо обов'язкову верифікацію email від allauth (зазвичай Google вже верифікував його)
+ACCOUNT_LOGIN_METHODS = {'email'}
+ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
+ACCOUNT_EMAIL_VERIFICATION = 'none'
+
+ACCOUNT_UNIQUE_EMAIL = True             # Email має бути унікальним у базі
+# Налаштування для створення користувача
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None # Кажемо allauth, що поля username може не бути при реєстрації
+
+# Автоматично створювати користувача без переходу на сторінку signup
+SOCIALACCOUNT_AUTO_SIGNUP = True
+
+# Вимикаємо обов'язкове підтвердження пошти для соцмереж
+SOCIALACCOUNT_EMAIL_REQUIRED = False
+SOCIALACCOUNT_EMAIL_VERIFICATION = "none"
