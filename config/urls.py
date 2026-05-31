@@ -21,6 +21,12 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('clinic/', include("clinic.urls"), name='clinic'),
     path('users/', include("user.urls"), name='user'),
-    # Обов'язково для allauth соцмереж (навіть якщо працюємо суто як API)
+    # Внутрішні маршрути бібліотеки django-allauth.
+    # Вони потрібні для обробки логіки соцмереж (OAuth-провайдерів), генерації правильних
+    # redirect_uri (callback), верифікації email-адрес та зв'язку Google-акаунта з Django-юзером.
     path('accounts/', include('allauth.urls')),
+
+    # Стандартні вбудовані візуальні сторінки Django для авторизації (вхід, вихід, зміна пароля).
+    # Зазвичай у чистих API проєктах це використовується як запасний варіант або для тестування шаблонів.
+    path('accounts/profile', include('django.contrib.auth.urls')),
 ]

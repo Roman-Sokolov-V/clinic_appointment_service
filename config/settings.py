@@ -9,7 +9,7 @@ https://docs.djangoproject.com/en/6.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
-
+from datetime import timedelta
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     # ... твої додатки
     'django.contrib.sites',  # Обов'язково для allauth
     'rest_framework.authtoken',
+    'rest_framework_simplejwt',
     'dj_rest_auth',
     'dj_rest_auth.registration',  # Для реєстрації нових юзерів
 
@@ -135,7 +136,9 @@ AUTH_USER_MODEL = 'user.User'
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
-    )
+    ),
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
+    'PAGE_SIZE': 10
 }
 
 
@@ -143,8 +146,22 @@ REST_FRAMEWORK = {
 SITE_ID = 1
 
 # Налаштування rest-auth для використання JWT замість звичайних токенів
-REST_USE_JWT = True
-JWT_AUTH_COOKIE = 'my-app-auth'
+REST_AUTH = {
+    'USE_JWT': True,
+    'JWT_AUTH_COOKIE': 'access-token',
+    'JWT_AUTH_REFRESH_COOKIE': 'refresh-token',
+    'JWT_AUTH_SECURE': False,  # Set to True in production (HTTPS)
+    'JWT_AUTH_SAMESITE': 'Lax',
+    ############
+    'JWT_AUTH_RETURN_EXPIRATION': True,
+    'JWT_AUTH_HTTPONLY': False,  # Вимикаємо режим "тільки куки" для розробки
+}
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+}
 
 
 # Вимикаємо обов'язкову верифікацію email від allauth (зазвичай Google вже верифікував його)
@@ -162,3 +179,5 @@ SOCIALACCOUNT_AUTO_SIGNUP = True
 # Вимикаємо обов'язкове підтвердження пошти для соцмереж
 SOCIALACCOUNT_EMAIL_REQUIRED = False
 SOCIALACCOUNT_EMAIL_VERIFICATION = "none"
+# Куди перенаправляти користувача після успішного входу
+LOGIN_REDIRECT_URL = '/users/me/'

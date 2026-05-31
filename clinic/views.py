@@ -1,48 +1,15 @@
-from rest_framework import status, viewsets
+from rest_framework import status, viewsets, serializers
+from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
-from rest_framework.generics import ListCreateAPIView, RetrieveDestroyAPIView
+from rest_framework.generics import ListCreateAPIView, RetrieveDestroyAPIView, get_object_or_404
+from rest_framework.mixins import CreateModelMixin, RetrieveModelMixin, DestroyModelMixin, ListModelMixin
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
+from rest_framework.viewsets import GenericViewSet
 
-from clinic.models import Specialization, Doctor, DoctorSlot, Appointment
+from clinic.models import Specialization, Doctor, DoctorSlot, Appointment, APPOINTMENT_STATUS
 from clinic.serializers import SpecializationSerializer, DoctorSerializer, BulkCreateSlotsSerializer, \
-    SlotDateSerializer, SlotSerializer
-
-
-# @api_view(["POST", "GET"])
-# def specialization_view(request):
-#     if request.method == 'POST':
-#         serializer = SpecializationSerializer(data=request.data)
-#         serializer.is_valid(raise_exception=True)
-#         serializer.save()
-#         return Response(serializer.data, status=status.HTTP_201_CREATED)
-#     elif request.method == 'GET':
-#         specializations = Specialization.objects.all()
-#         serializer = SpecializationSerializer(specializations, many=True)
-#         return Response(serializer.data)
-#
-#
-# @api_view(["GET", "DELETE", "PUT", "PATCH"])
-# def specialization_detail_view(request, pk):
-#     specialization = get_object_or_404(Specialization, pk=pk)
-#     if request.method == 'GET':
-#         serializer = SpecializationSerializer(specialization)
-#         return Response(serializer.data, status=status.HTTP_200_OK)
-#
-#     elif request.method == 'DELETE':
-#         specialization.delete()
-#         return Response(status=status.HTTP_204_NO_CONTENT)
-#
-#     elif request.method == 'PUT':
-#         serializer = SpecializationSerializer(specialization, data=request.data)
-#         serializer.is_valid(raise_exception=True)
-#         serializer.save()
-#         return Response(serializer.data, status=status.HTTP_200_OK)
-#
-#     elif request.method == 'PATCH':
-#         serializer = SpecializationSerializer(specialization, data=request.data, partial=True)
-#         serializer.is_valid(raise_exception=True)
-#         serializer.save()
-#         return Response(serializer.data, status=status.HTTP_200_OK)
+    SlotDateSerializer, SlotSerializer, AppointmentSerializer, AppointmentFilterSerializer
 
 
 class SpecializationViewSet(viewsets.ModelViewSet):
@@ -50,26 +17,46 @@ class SpecializationViewSet(viewsets.ModelViewSet):
     serializer_class = SpecializationSerializer
     queryset = Specialization.objects.all()
 
+    def get_permissions(self):
+        if self.action in ('list', 'retrieve'):
+            permission_classes = [IsAuthenticated()]
+        else:
+            permission_classes = [IsAdminUser()]
+        return permission_classes
+
 
 class DoctorViewSet(viewsets.ModelViewSet):
     model = Doctor
     serializer_class = DoctorSerializer
-    queryset = Doctor.objects.all()
+
+    def get_permissions(self):
+        if self.action in ('list', 'retrieve'):
+            permission_classes = [IsAuthenticated()]
+        else:
+            permission_classes = [IsAdminUser()]
+        return permission_classes
+
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        queryset = Doctor.objects.all()
         if self.action == 'list':
-                if specialization := self.request.query_params.get("specialization"):
-                    queryset = Doctor.objects.all().prefetch_related('specializations')
-                    if specialization.isdigit():
-                        queryset = queryset.filter(specializations=int(specialization))
-                    else:
-                        queryset = queryset.filter(specializations__code__iexact=specialization.strip())
+            if query_filter := self.request.query_params.get("specialization"):
+                queryset = queryset.prefetch_related('specializations')
+                if query_filter.isdigit():
+                    queryset = queryset.filter(specializations__id=int(query_filter))
+                else:
+                    queryset = queryset.filter(specializations__code__icontains=query_filter.strip())
+
         return queryset
 
 
 class ListBulkCreateSlotsApiView(ListCreateAPIView):
 
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return [IsAuthenticated()]
+        else:
+            return [IsAdminUser()]
 
     def get_serializer_class(self):
         if self.request.method == "GET":
@@ -77,14 +64,13 @@ class ListBulkCreateSlotsApiView(ListCreateAPIView):
         return BulkCreateSlotsSerializer
 
     def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(
-            data=request.data, context={"doctor_id": self.kwargs["pk"]}
-        )
+        doctor = get_object_or_404(Doctor, id=self.kwargs["pk"])
+        serializer = self.get_serializer(data=request.data, context={"doctor": doctor})
         serializer.is_valid(raise_exception=True)
         created_slots = serializer.save()
 
         return Response(
-            SlotDateSerializer(created_slots, many=True).data,
+            SlotSerializer(created_slots, many=True).data,
             status=status.HTTP_201_CREATED,
         )
 
@@ -99,31 +85,92 @@ class ListBulkCreateSlotsApiView(ListCreateAPIView):
             if from_ is not None:
                 queryset = queryset.filter(start__gte=from_.strip())
             if to_ is not None:
-                # queryset = queryset.filter(end__lte=to_)
                 queryset = queryset.filter(end__lte=to_.strip())
             if available_only is not None:
                 if available_only.strip().lower() == "true":
                     queryset = queryset.exclude(
                         id__in=Appointment.objects.filter(
                             status="BOOKED"
-                        ).values_list("doctor_slot_id", flat=True)
+                        ).values_list("slot", flat=True)
                     )
+
         return queryset
 
 
 class DetailSlotApiView(RetrieveDestroyAPIView):
     serializer_class = SlotSerializer
+    queryset = DoctorSlot.objects.all()
+
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return [IsAuthenticated()]
+        else:
+            return [IsAdminUser()]
 
     def perform_destroy(self, instance):
         appointment = Appointment.objects.filter(
-            doctor_slot_id=instance.id,
-            status="BOOKED" #  в завданні без цього, але логічніше так
+            slot=instance.id,
+            # status="BOOKED" # в завданні якщо взагалі appointment існує не зважаючи на статус
         ).first()
         if appointment:
             raise ValidationError(
-                 f"Cannot delete slot because it has a booked appointment (ID: {appointment.id})."
+                 f"Cannot delete slot because it has an appointment (ID: {appointment.id})."
             )
         instance.delete()
 
+class AppointmentViewSet(
+    CreateModelMixin,
+    RetrieveModelMixin,
+    DestroyModelMixin,
+    ListModelMixin,
+    GenericViewSet
+):
+    model = Appointment
+    serializer_class = AppointmentSerializer
+    queryset = Appointment.objects.select_related("slot").all()
 
+    def get_permissions(self):
+        if self.action  in ('list', 'retrieve'):
+            return [IsAuthenticated()]
+
+        return [IsAdminUser()]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        filter_serializer = AppointmentFilterSerializer(
+            data=self.request.query_params
+        )
+        filter_serializer.is_valid(raise_exception=False)
+        filters = filter_serializer.validated_data
+        patient_id = filters.get("patient_id")
+        doctor_id = filters.get("doctor_id")
+        status_ = filters.get("status")
+        from_date = filters.get("from_date")
+        to_date = filters.get("to_date")
+
+
+        if patient_id:
+            queryset = queryset.filter(patient_id=patient_id)
+        if doctor_id:
+            queryset = queryset.filter(slot__doctor_id=doctor_id)
+        if status_:
+            queryset = queryset.filter(status=status_)
+        if from_date:
+            queryset = queryset.filter(slot__start__gte=from_date)
+        if to_date:
+            queryset = queryset.filter(slot__start__lte=to_date)
+            
+        # casual users can see only own appointments only
+        if not self.request.user.is_staff:
+            queryset = queryset.filter(patient=self.request.user)
+        return queryset
+
+
+
+
+# todo  POST: appointments/ - create appointment (fails if slot already has a BOOKED appointment)
+# todo  GET: appointments/<id>/ - get appointment detail
+# todo  POST: appointments/<id>/cancel/ - cancel appointment; late-cancel may create CANCELLATION_FEE
+# todo  POST: appointments/<id>/complete/ - mark completed
+# todo  POST: appointments/<id>/no-show/ - (staff) mark as NO_SHOW (normally set by scheduled job after slot end)
 
