@@ -1,3 +1,7 @@
+from datetime import timedelta
+
+from django.db import transaction
+from django.utils import timezone
 from rest_framework import status, viewsets, serializers
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -10,6 +14,7 @@ from rest_framework.viewsets import GenericViewSet
 from clinic.models import Specialization, Doctor, DoctorSlot, Appointment, APPOINTMENT_STATUS
 from clinic.serializers import SpecializationSerializer, DoctorSerializer, BulkCreateSlotsSerializer, \
     SlotDateSerializer, SlotSerializer, AppointmentSerializer, AppointmentFilterSerializer
+from clinic.services.appointment_service import AppointmentService
 
 
 class SpecializationViewSet(viewsets.ModelViewSet):
@@ -130,8 +135,9 @@ class AppointmentViewSet(
     queryset = Appointment.objects.select_related("slot").all()
 
     def get_permissions(self):
-        if self.action  in ('list', 'retrieve', 'create'):
+        if self.action  in ('list', 'retrieve', 'create', 'cancel'):
             return [IsAuthenticated()]
+
         return [IsAdminUser()]
 
     def get_queryset(self):
@@ -165,6 +171,9 @@ class AppointmentViewSet(
         return queryset
 
     def perform_create(self, serializer):
+        """
+        Fill patient_id fields before creating appointment
+        """
         user = self.request.user
         patient = serializer.validated_data.get("patient")
         if user.is_staff:
@@ -181,9 +190,23 @@ class AppointmentViewSet(
                 )
             serializer.save(patient=user)
 
+    def cancellation_fee(self, appointment):
+        pass
 
-# todo  POST: appointments/ - create appointment (fails if slot already has a BOOKED appointment)
-# todo  GET: appointments/<id>/ - get appointment detail
+    @action(methods=["POST"], detail=True)
+    def cancel(self, request, pk=None):
+        appointment = self.get_object()
+
+        appointment = AppointmentService.cancel_appointment(
+            appointment=appointment,
+            user=request.user
+        )
+
+        return Response(
+            {"status": appointment.status},
+            status=status.HTTP_204_NO_CONTENT
+        )
+
 # todo  POST: appointments/<id>/cancel/ - cancel appointment; late-cancel may create CANCELLATION_FEE
 # todo  POST: appointments/<id>/complete/ - mark completed
 # todo  POST: appointments/<id>/no-show/ - (staff) mark as NO_SHOW (normally set by scheduled job after slot end)
