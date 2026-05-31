@@ -1,5 +1,6 @@
 from datetime import datetime
 from datetime import timedelta
+from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 
@@ -73,6 +74,9 @@ def populate_doctors(extra: list[dict] = None) -> list[Doctor]:
         for i in range(min(len(doctors), len(specializations))):
             doctors[i].specializations.add(specializations[i])
     return doctors
+
+def create_patient(email: str="test@test", password: str="STRong#password#"):
+    return get_user_model().objects.create_user(email, password)
 
 def populate_free_slots(first_date: datetime=None) -> list[DoctorSlot]:
     doctors = populate_doctors()
@@ -873,11 +877,34 @@ class AppointmentAuthenticatedUserTests(ResultMixin, TestCase):
         self.client.force_authenticate(user=self.user)
 
     def test_create_appointment(self):
-        payload = {}
+        slots = populate_free_slots()
+        slot = slots[0]
+        payload = {
+            "slot": slot.id,
+        }
         full_view_name = self.view_name + "-list"
         url = reverse(full_view_name)
         response = self.client.post(url, data=payload, format="json")
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        result = self.get_result(response)
+        # check price automatically got from doctors                  price_per_visit
+        self.assertEqual(
+            Decimal(result["price"]),
+            Doctor.objects.get(id=slot.doctor_id).price_per_visit
+        )
+    def test_cant_create_appointment_for_other_patient(self):
+        slots = populate_free_slots()
+        slot = slots[0]
+        other_patient = create_patient()
+        payload = {
+            "slot": slot.id,
+            "patient": other_patient.id,
+        }
+        full_view_name = self.view_name + "-list"
+        url = reverse(full_view_name)
+        response = self.client.post(url, data=payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
 
     def test_list_appointment_only_own_appointments(self):
         make_slots_and_1_appointment()
@@ -985,20 +1012,11 @@ class AppointmentAuthenticatedUserTests(ResultMixin, TestCase):
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertTrue(Appointment.objects.filter(slot=another_person_slot).exists())
 
-    def test_get_appointment(self):
-        full_view_name = self.view_name + "-detail"
-        url = reverse(full_view_name, kwargs={"pk": 1})
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-
     def test_delete_appointment(self):
         full_view_name = self.view_name + "-detail"
-        patient_id = Appointment.objects.all().first()
-        print(patient_id)
-
         url = reverse(full_view_name, kwargs={"pk": 1})
         response = self.client.delete(url)
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
 
     def test_update_patch_appointment(self):
@@ -1006,9 +1024,9 @@ class AppointmentAuthenticatedUserTests(ResultMixin, TestCase):
         full_view_name = self.view_name + "-detail"
         url = reverse(full_view_name, kwargs={"pk": 1})
         response = self.client.put(url, data=payload, format="json")
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         response = self.client.patch(url, data=payload, format="json")
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
 
 
@@ -1023,12 +1041,14 @@ class AppointmentAdminUserTests(ResultMixin, TestCase):
         )
         self.client.force_authenticate(user=self.admin)
 
-    def test_create_appointment(self):
+    def test_create_appointment_with_patient_in_payload(self):
         slots = populate_free_slots()
-        print(slots[0].id)
+        patient = create_patient()
+        print(patient)
         payload = {
-            "slot": 1000,
-            "patient": self.admin.pk,
+
+            "slot": slots[0].id,
+            "patient": patient.id,
         }
         full_view_name = self.view_name + "-list"
         url = reverse(full_view_name)

@@ -1,3 +1,5 @@
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AbstractUser
 from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
@@ -71,6 +73,8 @@ class BulkCreateSlotsSerializer(serializers.Serializer):
 
 
 class AppointmentFilterSerializer(serializers.Serializer):
+    """serializer for filtering appointments"""
+
     #patient_id = serializers.IntegerField(required=False)
     #doctor_id = serializers.IntegerField(required=False)
     status = serializers.ChoiceField(
@@ -84,6 +88,10 @@ class AppointmentFilterSerializer(serializers.Serializer):
 
 
 class AppointmentSerializer(serializers.ModelSerializer):
+    patient = serializers.PrimaryKeyRelatedField(
+        queryset=get_user_model().objects.all(),
+        required=False
+    )
     class Meta:
         model = Appointment
         fields = ('id', 'slot', 'patient', 'status', 'booked_at', 'completed_at', 'price')
@@ -91,7 +99,6 @@ class AppointmentSerializer(serializers.ModelSerializer):
 
 
     def validate(self, attrs):
-
         Appointment.validate_slot_not_expired(
             attrs["slot"],
             serializers.ValidationError
@@ -102,9 +109,10 @@ class AppointmentSerializer(serializers.ModelSerializer):
         )
         return attrs
 
-    def create(self, validated_data):
-        slot = validated_data["slot"]
 
+    def create(self, validated_data):
+
+        slot = validated_data["slot"]
         price = (
             DoctorSlot.objects
             .filter(pk=slot.id)

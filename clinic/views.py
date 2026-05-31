@@ -130,9 +130,8 @@ class AppointmentViewSet(
     queryset = Appointment.objects.select_related("slot").all()
 
     def get_permissions(self):
-        if self.action  in ('list', 'retrieve'):
+        if self.action  in ('list', 'retrieve', 'create'):
             return [IsAuthenticated()]
-
         return [IsAdminUser()]
 
     def get_queryset(self):
@@ -160,12 +159,27 @@ class AppointmentViewSet(
         if to_date:
             queryset = queryset.filter(slot__start__lte=to_date)
             
-        # casual users can see only own appointments only
+        # casual users can see own appointments only
         if not self.request.user.is_staff:
             queryset = queryset.filter(patient=self.request.user)
         return queryset
 
-
+    def perform_create(self, serializer):
+        user = self.request.user
+        patient = serializer.validated_data.get("patient")
+        if user.is_staff:
+            if not patient:
+                raise ValidationError({"patient": "Required for admin"})
+            serializer.save()
+        else:
+            if patient and patient != user:
+                raise ValidationError(
+                    {
+                        "patient": "You are not allowed to create appointment not for yourself."
+                                   " To create appointment for yourself, you do not have to fill field 'patient'"
+                    }
+                )
+            serializer.save(patient=user)
 
 
 # todo  POST: appointments/ - create appointment (fails if slot already has a BOOKED appointment)
