@@ -865,7 +865,26 @@ class AppointmentUnauthenticatedUserTests(TestCase):
         response = self.client.patch(url, data=payload, format="json")
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
+    def test_cancel_appointment(self):
+        full_view_name = self.view_name + "-detail"
+        url = reverse(full_view_name, kwargs={"pk": 1})
+        full_url = url + "cancel/"
+        payload = {}
+        response = self.client.post(full_url, data=payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
+
+    def test_cant_mark_complete_appointment(self):
+        full_view_name = self.view_name + "-detail"
+        url = reverse(full_view_name, kwargs={"pk": 1})
+        full_url = url + "complete/"
+        payload = {}
+        response = self.client.post(full_url, data=payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+
+########
 class AppointmentAuthenticatedUserTests(ResultMixin, TestCase):
     def setUp(self):
         self.view_name = "clinic:appointment"
@@ -1008,7 +1027,7 @@ class AppointmentAuthenticatedUserTests(ResultMixin, TestCase):
         full_view_name = self.view_name + "-detail"
         url = reverse(full_view_name, kwargs={"pk": f"{another_person_appointment.id}"})
         response = self.client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         self.assertTrue(Appointment.objects.filter(slot=another_person_slot).exists())
 
     def test_delete_appointment(self):
@@ -1037,11 +1056,47 @@ class AppointmentAuthenticatedUserTests(ResultMixin, TestCase):
         full_view_name = self.view_name + "-detail"
         url = reverse(full_view_name, kwargs={"pk": f"{appointment.id}"})
         full_url = url + "cancel/"
-        print(full_url)
         payload = {}
         response = self.client.post(full_url, data=payload, format="json")
-        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        appointment.refresh_from_db()
+        self.assertTrue(appointment.status == "CANCELED")
         # todo  late-cancel may create CANCELLATION_FEE
+
+    def test_cant_cancel_not_own_appointment(self):
+        slots = populate_free_slots()
+        slot = slots[0]
+        other_user = create_patient()
+        appointment = Appointment.objects.create(
+            patient=other_user,
+            slot=slot,
+            price="22.22",
+        )
+        full_view_name = self.view_name + "-detail"
+        url = reverse(full_view_name, kwargs={"pk": f"{appointment.id}"})
+        full_url = url + "cancel/"
+        payload = {}
+        response = self.client.post(full_url, data=payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        appointment.refresh_from_db()
+        self.assertFalse(appointment.status == "CANCELED")
+        # todo  late-cancel may create CANCELLATION_FEE
+
+    def test_cant_mark_complete_appointment(self):
+        slots = populate_free_slots()
+        appointment = Appointment.objects.create(
+            patient=self.user,
+            slot=slots[0],
+            price="22.22",
+        )
+        full_view_name = self.view_name + "-detail"
+        url = reverse(full_view_name, kwargs={"pk": f"{appointment.id}"})
+        full_url = url + "complete/"
+        payload = {}
+        response = self.client.post(full_url, data=payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        appointment.refresh_from_db()
+        self.assertFalse(appointment.status == "COMPLETED")
 
 
 class AppointmentAdminUserTests(ResultMixin, TestCase):
@@ -1070,3 +1125,40 @@ class AppointmentAdminUserTests(ResultMixin, TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         result = self.get_result(response)
         print(result)
+
+    def test_cancel_not_own_appointment(self):
+        slots = populate_free_slots()
+        slot = slots[0]
+        other_user = create_patient()
+        appointment = Appointment.objects.create(
+            patient=other_user,
+            slot=slot,
+            price="22.22",
+        )
+        full_view_name = self.view_name + "-detail"
+        url = reverse(full_view_name, kwargs={"pk": f"{appointment.id}"})
+        full_url = url + "cancel/"
+        payload = {}
+        response = self.client.post(full_url, data=payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        appointment.refresh_from_db()
+        self.assertTrue(appointment.status == "CANCELED")
+        # todo  late-cancel may create CANCELLATION_FEE
+
+    def test_mark_complete_appointment(self):
+        def test_cant_mark_complete_appointment(self):
+            slots = populate_free_slots()
+            patient = create_patient()
+            appointment = Appointment.objects.create(
+                patient=patient,
+                slot=slots[0],
+                price="22.22",
+            )
+            full_view_name = self.view_name + "-detail"
+            url = reverse(full_view_name, kwargs={"pk": f"{appointment.id}"})
+            full_url = url + "complete/"
+            payload = {}
+            response = self.client.post(full_url, data=payload, format="json")
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            appointment.refresh_from_db()
+            self.assertTrue(appointment.status == "COMPLETED")

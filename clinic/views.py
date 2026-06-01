@@ -12,6 +12,7 @@ from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
 from clinic.models import Specialization, Doctor, DoctorSlot, Appointment, APPOINTMENT_STATUS
+from clinic.permissions import IsOwnerOrAdmin
 from clinic.serializers import SpecializationSerializer, DoctorSerializer, BulkCreateSlotsSerializer, \
     SlotDateSerializer, SlotSerializer, AppointmentSerializer, AppointmentFilterSerializer
 from clinic.services.appointment_service import AppointmentService
@@ -135,40 +136,44 @@ class AppointmentViewSet(
     queryset = Appointment.objects.select_related("slot").all()
 
     def get_permissions(self):
-        if self.action  in ('list', 'retrieve', 'create', 'cancel'):
+        if self.action  in ('list', 'create'):
             return [IsAuthenticated()]
+        if self.action in ('retrieve', 'cancel'):
+            return [IsOwnerOrAdmin()]
 
         return [IsAdminUser()]
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        filter_serializer = AppointmentFilterSerializer(
-            data=self.request.query_params
-        )
-        filter_serializer.is_valid(raise_exception=False)
-        filters = filter_serializer.validated_data
-        patient_id = filters.get("patient_id")
-        doctor_id = filters.get("doctor_id")
-        status_ = filters.get("status")
-        from_date = filters.get("from_date")
-        to_date = filters.get("to_date")
+        if self.action == "list":
+            filter_serializer = AppointmentFilterSerializer(
+                data=self.request.query_params
+            )
+            filter_serializer.is_valid(raise_exception=False)
+            filters = filter_serializer.validated_data
+            patient_id = filters.get("patient_id")
+            doctor_id = filters.get("doctor_id")
+            status_ = filters.get("status")
+            from_date = filters.get("from_date")
+            to_date = filters.get("to_date")
 
 
-        if patient_id:
-            queryset = queryset.filter(patient_id=patient_id)
-        if doctor_id:
-            queryset = queryset.filter(slot__doctor_id=doctor_id)
-        if status_:
-            queryset = queryset.filter(status=status_)
-        if from_date:
-            queryset = queryset.filter(slot__start__gte=from_date)
-        if to_date:
-            queryset = queryset.filter(slot__start__lte=to_date)
-            
-        # casual users can see own appointments only
-        if not self.request.user.is_staff:
-            queryset = queryset.filter(patient=self.request.user)
+            if patient_id:
+                queryset = queryset.filter(patient_id=patient_id)
+            if doctor_id:
+                queryset = queryset.filter(slot__doctor_id=doctor_id)
+            if status_:
+                queryset = queryset.filter(status=status_)
+            if from_date:
+                queryset = queryset.filter(slot__start__gte=from_date)
+            if to_date:
+                queryset = queryset.filter(slot__start__lte=to_date)
+
+            # casual users can see own appointments only
+            if not self.request.user.is_staff:
+                queryset = queryset.filter(patient=self.request.user)
         return queryset
+
 
     def perform_create(self, serializer):
         """
@@ -197,6 +202,8 @@ class AppointmentViewSet(
     def cancel(self, request, pk=None):
         appointment = self.get_object()
 
+        self.check_object_permissions(request, appointment)
+
         appointment = AppointmentService.cancel_appointment(
             appointment=appointment,
             user=request.user
@@ -204,10 +211,19 @@ class AppointmentViewSet(
 
         return Response(
             {"status": appointment.status},
-            status=status.HTTP_204_NO_CONTENT
+            status=status.HTTP_200_OK
         )
 
-# todo  POST: appointments/<id>/cancel/ - cancel appointment; late-cancel may create CANCELLATION_FEE
+    @action(methods=["POST"], detail=True)
+    def complete(self, request, pk=None):
+        appointment = self.get_object()
+        appointment = AppointmentService.complete_appointment(appointment)
+        return Response(
+            {"status": appointment.status},
+            status=status.HTTP_200_OK
+        )
+
+
 # todo  POST: appointments/<id>/complete/ - mark completed
 # todo  POST: appointments/<id>/no-show/ - (staff) mark as NO_SHOW (normally set by scheduled job after slot end)
 
