@@ -136,11 +136,10 @@ class AppointmentViewSet(
     queryset = Appointment.objects.select_related("slot").all()
 
     def get_permissions(self):
-        if self.action  in ('list', 'create'):
+        if self.action in ("list",):
             return [IsAuthenticated()]
         if self.action in ('retrieve', 'cancel'):
             return [IsOwnerOrAdmin()]
-
         return [IsAdminUser()]
 
     def get_queryset(self):
@@ -195,15 +194,11 @@ class AppointmentViewSet(
                 )
             serializer.save(patient=user)
 
-    def cancellation_fee(self, appointment):
-        pass
 
     @action(methods=["POST"], detail=True)
     def cancel(self, request, pk=None):
         appointment = self.get_object()
-
         self.check_object_permissions(request, appointment)
-
         appointment = AppointmentService.cancel_appointment(
             appointment=appointment,
             user=request.user
@@ -217,13 +212,26 @@ class AppointmentViewSet(
     @action(methods=["POST"], detail=True)
     def complete(self, request, pk=None):
         appointment = self.get_object()
-        appointment = AppointmentService.complete_appointment(appointment)
+        self.check_object_permissions(request, appointment)
+        appointment = AppointmentService.complete_appointment(request, appointment)
         return Response(
             {"status": appointment.status},
             status=status.HTTP_200_OK
         )
 
-
-# todo  POST: appointments/<id>/complete/ - mark completed
-# todo  POST: appointments/<id>/no-show/ - (staff) mark as NO_SHOW (normally set by scheduled job after slot end)
+    @action(
+        methods=["POST"],
+        detail=True,
+        url_path="no-show",
+    )
+    def no_show(self, request, pk=None):
+        appointment = self.get_object()
+        self.check_object_permissions(request, appointment)
+        appointment.status = "NO_SHOW"
+        appointment.save(update_fields=["status"])
+        return Response(
+            {"status": appointment.status},
+            status=status.HTTP_200_OK
+        )
+    # todo  POST: appointments/<id>/no-show/ - (staff) mark as NO_SHOW (normally set by scheduled job after slot end)
 

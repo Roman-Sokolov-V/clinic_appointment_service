@@ -46,6 +46,6 @@ class AppointmentService:
         # TODO: Stripe / internal billing logic
         pass
 
-    def complete_appointment(self, appointment: Appointment):
+    def complete_appointment(*, appointment: Appointment):
         appointment.status = "COMPLETED"
         appointment.save(update_fields=["status"])

@@ -14,9 +14,3 @@ urlpatterns = [
     path('slots/<pk>/', DetailSlotApiView.as_view(), name='detail-slot'),
 ]
 urlpatterns += router.urls
-# todo  POST: appointments/ - create appointment (fails if slot already has a BOOKED appointment)
-# todo  GET: appointments/?patient_id=...&doctor_id=...&status=...&from=&to= - list appointments
-# todo  GET: appointments/<id>/ - get appointment detail
-# todo  POST: appointments/<id>/cancel/ - cancel appointment; late-cancel may create CANCELLATION_FEE
-# todo  POST: appointments/<id>/complete/ - mark completed
-# todo  POST: appointments/<id>/no-show/ - (staff) mark as NO_SHOW (normally set by scheduled job after slot end)

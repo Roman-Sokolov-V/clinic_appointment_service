@@ -882,6 +882,14 @@ class AppointmentUnauthenticatedUserTests(TestCase):
         response = self.client.post(full_url, data=payload, format="json")
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
+    def test_cant_mark_no_show_status(self):
+        full_view_name = self.view_name + "-detail"
+        url = reverse(full_view_name, kwargs={"pk": 1})
+        full_url = url + "no-show/"
+        payload = {}
+        response = self.client.post(full_url, data=payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
 
 
 ########
@@ -1099,6 +1107,24 @@ class AppointmentAuthenticatedUserTests(ResultMixin, TestCase):
         self.assertFalse(appointment.status == "COMPLETED")
 
 
+    def test_cant_mark_no_show_status(self):
+        slots = populate_free_slots()
+        slot = slots[0]
+        appointment = Appointment.objects.create(
+            patient=self.user,
+            slot=slot,
+            price="22.22",
+        )
+        full_view_name = self.view_name + "-detail"
+        url = reverse(full_view_name, kwargs={"pk": f"{appointment.id}"})
+        full_url = url + "no-show/"
+        payload = {}
+        response = self.client.post(full_url, data=payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+####
+
 class AppointmentAdminUserTests(ResultMixin, TestCase):
     def setUp(self):
         self.view_name = "clinic:appointment"
@@ -1162,3 +1188,21 @@ class AppointmentAdminUserTests(ResultMixin, TestCase):
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             appointment.refresh_from_db()
             self.assertTrue(appointment.status == "COMPLETED")
+
+    def test_mark_no_show_status(self):
+        slots = populate_free_slots()
+        slot = slots[0]
+        patient = create_patient()
+        appointment = Appointment.objects.create(
+            patient=patient,
+            slot=slot,
+            price="22.22",
+        )
+        full_view_name = self.view_name + "-detail"
+        url = reverse(full_view_name, kwargs={"pk": f"{appointment.id}"})
+        full_url = url + "no-show/"
+        payload = {}
+        response = self.client.post(full_url, data=payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        appointment.refresh_from_db()
+        self.assertTrue(appointment.status == "NO_SHOW")
