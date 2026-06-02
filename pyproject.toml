@@ -11,4 +11,5 @@ dependencies = [
     "djangorestframework-stubs>=3.17.0",
     "psycopg[binary]>=3.3.4",
     "requests>=2.34.2",
+    "stripe>=15.2.0",
 ]
