@@ -4,8 +4,6 @@ services:
     restart: always
     env_file:
       - .env
-    environment:
-      - IN_DOCKER=True # використовується в settings для підключення постгресс бд якщо запущено в контейнері
     volumes:
       - clinic_db:/var/lib/postgresql/data
     ports:
@@ -19,6 +17,10 @@ services:
 
   clinic:
     build: .
+    env_file:
+      - .env
+    environment:
+      - IN_DOCKER=True # використовується в settings для підключення постгресс бд якщо запущено в контейнері
     entrypoint: ["./entrypoint.sh"]
     ports:
       - "8000:8000"
