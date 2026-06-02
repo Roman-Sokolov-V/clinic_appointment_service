@@ -90,11 +90,11 @@ Resources:
 - [x] GET: doctors/<id>/ - get doctor detail
 - [x]  PUT/PATCH: doctors/<id>/ - update doctor
 - [x]  DELETE: doctors/<id>/ - delete doctor
-- [ ]  POST: doctors/<id>/slots/ - bulk create slots
+- [x]  POST: doctors/<id>/slots/ - bulk create slots
 - [x] GET: doctors/<id>/slots/?from=&to=&available_only=true|false
 - [x] list doctor’s slots; available_only=true returns slots with no current BOOKED appointment
-- [ ]  GET: slots/<id>/ - get slot detail
-- [ ]  DELETE: slots/<id>/ - delete slot (only if no appointment exists)
+- [x]  GET: slots/<id>/ - get slot detail
+- [x]  DELETE: slots/<id>/ - delete slot (only if no appointment exists)
 ### Users Service:
 #### Managing authentication & user registration
 #### API:
@@ -106,11 +106,11 @@ Resources:
 ### Appointments Service:
 #### Managing patients’ appointments
 #### API:
-- [ ]  POST: appointments/ - create appointment (fails if slot already has a BOOKED appointment)
-- [ ]  GET: appointments/?patient_id=...&doctor_id=...&status=...&from=&to= - list appointments
-- [ ]  GET: appointments/<id>/ - get appointment detail
-- [ ]  POST: appointments/<id>/cancel/ - cancel appointment; late-cancel may create CANCELLATION_FEE
-- [ ]  POST: appointments/<id>/complete/ - mark completed
+- [x]  POST: appointments/ - create appointment (fails if slot already has a BOOKED appointment)
+- [x]  GET: appointments/?patient_id=...&doctor_id=...&status=...&from=&to= - list appointments
+- [x]  GET: appointments/<id>/ - get appointment detail
+- [x]  POST: appointments/<id>/cancel/ - cancel appointment; late-cancel may create CANCELLATION_FEE
+- [x]  POST: appointments/<id>/complete/ - mark completed
 - [ ]  POST: appointments/<id>/no-show/ - (staff) mark as NO_SHOW (normally set by scheduled job after slot end)
 ### Notifications Service (Telegram):
 - [ ]  Notifications about appointment booked/cancelled/completed/no-show & successful payment

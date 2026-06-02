@@ -1,0 +1,4 @@
+.venv
+READMY.md
+db.sqlite3
+Dockerfile
