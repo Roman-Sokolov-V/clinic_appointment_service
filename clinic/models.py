@@ -1,6 +1,6 @@
 from django.db import models
 from django.db.models import Q, F
-from django.db.models.constraints import CheckConstraint, UniqueConstraint
+from django.db.models.constraints import CheckConstraint
 from django.utils import timezone
 
 from config.settings import AUTH_USER_MODEL
@@ -8,7 +8,7 @@ from config.settings import AUTH_USER_MODEL
 
 class Specialization(models.Model):
     name = models.CharField(max_length=100, unique=True)
-    code = models.SlugField(max_length=100, unique=True) # name i code по суті дублюють один одного, для чого?
+    code = models.SlugField(max_length=100, unique=True)
     description = models.TextField(null=True, blank=True)
 
 class Doctor(models.Model):
@@ -93,23 +93,3 @@ class Appointment(models.Model):
         self.validate_slot_not_expired(self.slot, ValueError)
         self.validate_slot_not_already_booked(self.slot, ValueError)
 
-
-PAYMENT_STATUS = (
-    ('PENDING', 'pending'),
-    ('PAID', 'paid'),
-    ('EXPIRED', 'expired'),
-)
-
-PAYMENT_TYPE = (
-    ('CONSULTATION', 'consultation'),
-    ('CANCELLATION_FEE', 'cancellation fee'),
-    ('NO_SHOW_FEE', 'no show fee'),
-)
-
-class Payment(models.Model):
-    status = models.CharField(max_length=100, choices=PAYMENT_STATUS)
-    type = models.CharField(max_length=100, choices=PAYMENT_TYPE)
-    appointment_id = models.IntegerField() # чому не OneToOne?
-    session_url = models.URLField()
-    session_id = models.CharField(max_length=100)
-    money_to_pay = models.DecimalField(max_digits=10, decimal_places=2)

@@ -41,7 +41,8 @@ INSTALLED_APPS = [
     'user',
     'clinic',
     'rest_framework',
-    # ... твої додатки
+    'payment',
+    
     'django.contrib.sites',  # Обов'язково для allauth
     'rest_framework.authtoken',
     'rest_framework_simplejwt',
@@ -195,3 +196,6 @@ SOCIALACCOUNT_EMAIL_REQUIRED = False
 SOCIALACCOUNT_EMAIL_VERIFICATION = "none"
 # Куди перенаправляти користувача після успішного входу
 LOGIN_REDIRECT_URL = '/users/me/'
+
+
+STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY')

@@ -18,6 +18,7 @@ from clinic.serializers import SpecializationSerializer, DoctorSerializer, BulkC
 from clinic.services.appointment_service import AppointmentService
 
 
+
 class SpecializationViewSet(viewsets.ModelViewSet):
     model = Specialization
     serializer_class = SpecializationSerializer

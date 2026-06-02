@@ -6,7 +6,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import get_object_or_404
 
-from clinic.models import Specialization, Doctor, DoctorSlot, Appointment, Payment, APPOINTMENT_STATUS
+from clinic.models import Specialization, Doctor, DoctorSlot, Appointment, APPOINTMENT_STATUS
 
 
 class SpecializationSerializer(serializers.ModelSerializer):
@@ -122,15 +122,3 @@ class AppointmentSerializer(serializers.ModelSerializer):
         validated_data["price"] = price
         appointment = Appointment.objects.create(**validated_data)
         return appointment
-
-
-# todo  POST: appointments/ - create appointment (fails if slot already has a BOOKED appointment)
-# todo  GET: appointments/?patient_id=...&doctor_id=...&status=...&from=&to= - list appointments
-# todo  GET: appointments/<id>/ - get appointment detail
-# todo  POST: appointments/<id>/cancel/ - cancel appointment; late-cancel may create CANCELLATION_FEE
-# todo  POST: appointments/<id>/complete/ - mark completed
-# todo  POST: appointments/<id>/no-show/ - (staff) mark as NO_SHOW (normally set by scheduled job after slot end)
-
-class PaymentSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Payment
