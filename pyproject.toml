@@ -9,6 +9,7 @@ dependencies = [
     "djangorestframework>=3.17.1",
     "djangorestframework-simplejwt>=5.5.1",
     "djangorestframework-stubs>=3.17.0",
+    "dotenv>=0.9.9",
     "psycopg[binary]>=3.3.4",
     "requests>=2.34.2",
     "stripe>=15.2.0",
