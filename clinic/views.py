@@ -1,23 +1,29 @@
-from datetime import timedelta
+import logging
 
 from django.db import transaction
-from django.utils import timezone
-from rest_framework import status, viewsets, serializers
+from django.utils.module_loading import import_string
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import ListCreateAPIView, RetrieveDestroyAPIView, get_object_or_404
-from rest_framework.mixins import CreateModelMixin, RetrieveModelMixin, DestroyModelMixin, ListModelMixin
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.mixins import (
+    CreateModelMixin, RetrieveModelMixin, DestroyModelMixin, ListModelMixin
+)
+from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
-from clinic.models import Specialization, Doctor, DoctorSlot, Appointment, APPOINTMENT_STATUS
+import payment
+from clinic.models import Specialization, Doctor, DoctorSlot, Appointment
 from clinic.permissions import IsOwnerOrAdmin
-from clinic.serializers import SpecializationSerializer, DoctorSerializer, BulkCreateSlotsSerializer, \
-    SlotDateSerializer, SlotSerializer, AppointmentSerializer, AppointmentFilterSerializer
+from clinic.serializers import (
+    SpecializationSerializer, DoctorSerializer, BulkCreateSlotsSerializer,
+    SlotSerializer, AppointmentSerializer, AppointmentFilterSerializer
+)
 from clinic.services.appointment_service import AppointmentService
+from config.settings import PAYMENT_SERVICE_CLASS
 
-
+logger = logging.getLogger("clinic_api")
 
 class SpecializationViewSet(viewsets.ModelViewSet):
     model = Specialization
@@ -177,24 +183,51 @@ class AppointmentViewSet(
 
     def perform_create(self, serializer):
         """
-        Fill patient_id fields before creating appointment
+        Save a new appointment and automatically initiate a Stripe payment
+        session using the StripePayment service.
         """
-        user = self.request.user
+
         patient = serializer.validated_data.get("patient")
-        if user.is_staff:
+        if self.request.user.is_staff:
             if not patient:
                 raise ValidationError({"patient": "Required for admin"})
-            serializer.save()
-        else:
-            if patient and patient != user:
+        elif patient and patient != self.request.user:
                 raise ValidationError(
                     {
                         "patient": "You are not allowed to create appointment not for yourself."
                                    " To create appointment for yourself, you do not have to fill field 'patient'"
                     }
                 )
-            serializer.save(patient=user)
+        else:
+            patient = self.request.user
 
+        with transaction.atomic():
+            # 1. Зберігаємо візит
+            appointment = serializer.save(patient=patient)
+            # 2. Створюємо платіж
+            PaymentService = import_string(PAYMENT_SERVICE_CLASS)
+            payment = PaymentService(appointment).create_payment()
+            return payment
+
+    def create(self, request, *args, **kwargs):
+        """
+        Create a new appointment and its corresponding Stripe payment session.
+
+        Extends the standard response by appending a 'checkout_url'. The frontend
+        should use this URL to redirect the patient to the Stripe checkout page.
+        """
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        payment = self.perform_create(serializer)
+        print(payment)
+        # todo send_telegram_notification_task.delay(
+        #     appointment_id=serializer.instance.id,
+        #     checkout_url=self.payment.session_url
+        # )
+        headers = self.get_success_headers(serializer.data)
+        response_data = serializer.data
+        response_data["checkout_url"] = payment.session_url
+        return Response(response_data, status=status.HTTP_201_CREATED, headers=headers)
 
     @action(methods=["POST"], detail=True)
     def cancel(self, request, pk=None):
