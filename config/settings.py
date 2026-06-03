@@ -13,8 +13,13 @@ from datetime import timedelta
 from pathlib import Path
 import os
 
+import dotenv
+
+dotenv.load_dotenv()
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
 
 
 # Quick-start development settings - unsuitable for production
@@ -172,7 +177,7 @@ REST_AUTH = {
     'JWT_AUTH_HTTPONLY': False,  # Вимикаємо режим "тільки куки" для розробки
 }
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),  #todo change 15
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
@@ -198,5 +203,45 @@ SOCIALACCOUNT_EMAIL_VERIFICATION = "none"
 LOGIN_REDIRECT_URL = '/users/me/'
 
 
+PAYMENT_SERVICE_CLASS = "payment.payment_services.stripe_service.StripePayment"
 STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY')
-STRIPE_ENDPOINT_SECRET = 123 # todo
+STRIPE_ENDPOINT_SECRET = os.environ.get('account id acct_1TdjL4GmhnDVlcXt')
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        # Красивий формат: Час [Рівень] Назва_логера: Повідомлення
+        'verbose': {
+            'format': '{asctime} [{levelname}] {name}: {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        # 1. Вивід у консоль (для Docker-логів або локальної розробки)
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+        # 2. Запис у файл (щоб логи не зникали після перезапуску сервера)
+        'file': {
+            'class': 'logging.FileHandler',
+            'filename': 'clinic_debug.log',
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        # Створюємо наш кастомний логер для додатків проєкту
+        'clinic_api': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',  # Буде логувати INFO, WARNING, ERROR
+            'propagate': True,
+        },
+        # Додатково можна увімкнути логер самого Django для відлову 500-х помилок
+        'django': {
+            'handlers': ['console', 'file'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+    },
+}
