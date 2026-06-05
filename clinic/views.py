@@ -183,8 +183,29 @@ class AppointmentViewSet(
 
     def perform_create(self, serializer):
         """
-        Save a new appointment and automatically initiate a Stripe payment
-        session using the StripePayment service.
+        Perform the creation of an appointment and initialize its Stripe payment flow.
+
+        Business Rules & Validation:
+        1. Staff members (admins) are allowed to book appointments for any user,
+           but they MUST explicitly provide a 'patient' ID.
+        2. Regular patients cannot book appointments for anyone else. If they provide
+           a 'patient' field that doesn't match their own user ID, a ValidationError is raised.
+        3. If a regular patient leaves the 'patient' field empty, it automatically defaults
+           to their own user profile.
+
+        Architecture & Data Flow:
+        The entire process is wrapped in a database `transaction.atomic()` block.
+        First, the appointment is saved. Then, the method dynamically extracts the
+        `frontend_success_url` and `frontend_cancel_url` that were temporarily captured
+        by the serializer during its validation/creation phase.
+
+        Finally, it initializes the designated PaymentService (e.g., StripePayment),
+        injecting the newly created appointment and the frontend redirection targets
+        to securely generate the payment session.
+
+        :param serializer: AppointmentSerializer instance with validated data.
+        :raises ValidationError: If permission checks fail or admin request lacks a patient.
+        :return: Payment model instance representing the pending Stripe transaction.
         """
 
         patient = serializer.validated_data.get("patient")
@@ -205,8 +226,14 @@ class AppointmentViewSet(
             # 1. Зберігаємо візит
             appointment = serializer.save(patient=patient)
             # 2. Створюємо платіж
+            frontend_success_url = getattr(serializer, "frontend_success_url", None)
+            frontend_cancel_url = getattr(serializer, "frontend_cancel_url", None)
             PaymentService = import_string(PAYMENT_SERVICE_CLASS)
-            payment = PaymentService(appointment).create_payment()
+            payment = PaymentService(
+                appointment=appointment,
+                frontend_success_url=frontend_success_url,
+                frontend_cancel_url=frontend_cancel_url,
+            ).create_payment()
             return payment
 
     def create(self, request, *args, **kwargs):
