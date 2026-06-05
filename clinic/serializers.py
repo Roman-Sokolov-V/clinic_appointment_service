@@ -90,17 +90,25 @@ class AppointmentFilterSerializer(serializers.Serializer):
 
 
 class AppointmentSerializer(serializers.ModelSerializer):
+    slot = serializers.PrimaryKeyRelatedField(
+        queryset=DoctorSlot.objects.select_related("doctor").all()
+    )
     frontend_success_url = serializers.URLField(required=False, write_only=True)
     frontend_cancel_url = serializers.URLField(required=False, write_only=True)
     patient = serializers.PrimaryKeyRelatedField(
         queryset=get_user_model().objects.all(),
         required=False
     )
+    payment_method = serializers.ChoiceField(
+        choices=["Stripe", "Cash"], # додати якщо з'являться нові методи крім Cash Stripe
+        default='Stripe',
+        write_only=True
+    )
     class Meta:
         model = Appointment
         fields = (
             'id', 'slot', 'patient', 'status', 'booked_at', 'completed_at', 'price',
-            'frontend_success_url', 'frontend_cancel_url'
+            'frontend_success_url', 'frontend_cancel_url', 'payment_method'
         )
         read_only_fields = ('id', 'status', 'booked_at', 'completed_at', 'price')
 
@@ -114,12 +122,30 @@ class AppointmentSerializer(serializers.ModelSerializer):
             attrs["slot"],
             serializers.ValidationError
         )
-        now = timezone.now()
-        slot_start = DoctorSlot.objects.get(attrs["slot"]).start
-        if now + timedelta(hours=1) > slot_start:
+        slot_start = attrs["slot"].start
+        payment_method = attrs["payment_method"]
+        user = self.context['request'].user
+        is_late_to_book_online = timezone.now() + timedelta(hours=1) > slot_start
+        if payment_method != "Stripe" and not user.is_staff:
             raise serializers.ValidationError(
-                {"booked_at": "You cannot create an appointment with payment later than an hour before slot.start"}
+                {"payment_method": "Patients are not allowed to specify this field"}
             )
+        if payment_method == "Stripe":
+            if is_late_to_book_online:
+                if user.is_staff:
+                    raise serializers.ValidationError(
+                        {
+                            "booked_at": "Ordering online later than an hour before the start of the appointment"
+                                         " is not possible, You can offer the client to pay in cash and create"
+                                         " appointment with field payment_method = 'Cash', after client paid"
+                        }
+                    )
+                raise serializers.ValidationError(
+                        {
+                            "booked_at": "Ordering by online later than an hour before the start of the appointment"
+                                      " is not possible, try contacting the reception"
+                        }
+                    )
         return attrs
 
 
@@ -144,13 +170,9 @@ class AppointmentSerializer(serializers.ModelSerializer):
         """
         self.frontend_success_url = validated_data.pop("frontend_success_url", None)
         self.frontend_cancel_url = validated_data.pop("frontend_cancel_url", None)
+        self.payment_method = validated_data.pop("payment_method", None)
         slot = validated_data["slot"]
-        price = (
-            DoctorSlot.objects
-            .filter(pk=slot.id)
-            .values_list("doctor__price_per_visit", flat=True)
-            .get()
-        )
-        validated_data["price"] = price
+        validated_data["price"] = slot.doctor.price_per_visit
+
         return Appointment.objects.create(**validated_data)
 

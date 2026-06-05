@@ -7,6 +7,7 @@ class PaymentSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "status",
+            "method",
             "type",
             "appointment",
             "session_url",

@@ -231,6 +231,7 @@ class AppointmentViewSet(
             # 2. Створюємо платіж
             frontend_success_url = getattr(serializer, "frontend_success_url", None)
             frontend_cancel_url = getattr(serializer, "frontend_cancel_url", None)
+            payment_method = getattr(serializer, "payment_method", None)
             # todo add expired_at for payment session
             expires_at = get_expires_at(appointment.slot.start)
             PaymentService = import_string(PAYMENT_SERVICE_CLASS)
@@ -239,6 +240,7 @@ class AppointmentViewSet(
                 frontend_success_url=frontend_success_url,
                 frontend_cancel_url=frontend_cancel_url,
                 expires_at=expires_at,
+                payment_method=payment_method
             ).create_payment()
             return payment
 

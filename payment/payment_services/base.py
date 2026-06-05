@@ -18,6 +18,7 @@ class AppointmentPayment(ABC):
             frontend_success_url: str | None = None,
             frontend_cancel_url: str | None = None,
             expires_at: int | None = None,
+            payment_method: str | None = None,
     ):
         """
         Initialize the Payment Service Coordinator.
@@ -43,6 +44,7 @@ class AppointmentPayment(ABC):
         self.amount = int(fee * 100) if fee else int(appointment.price * 100)
         self.payment_type = 'CANCELLATION_FEE' if fee else 'CONSULTATION'
         self.expires_at = expires_at
+        self.payment_method = payment_method
         if frontend_success_url:
             self.success_url = frontend_success_url
         else:
@@ -51,7 +53,6 @@ class AppointmentPayment(ABC):
             self.cancel_url = frontend_cancel_url
         else:
             self.cancel_url = BACKEND_CANCEL_URL
-
 
 
     @abstractmethod
@@ -103,19 +104,30 @@ class AppointmentPayment(ABC):
         :raises ValidationError: If internal serializer constraints fail.
         :return: Updated Payment model instance containing the gateway properties.
         """
-
         payload = {
             "appointment": self.appointment.id,
             "money_to_pay": self.amount / 100,
             "type": self.payment_type,
+            "method": self.payment_method,
+            "status": self.get_payment_status(),
         }
+
         serializer = PaymentSerializer(data=payload)
         if serializer.is_valid():
-            with transaction.atomic():
+            if self.payment_method == 'Cash':
                 payment = serializer.save()
-                session = self._generate_gateway_transaction(payment)
-                payment.session_id = session.id
-                payment.session_url = session.url
-                payment.save(update_fields=["session_id", "session_url"])
                 return payment
+            elif self.payment_method == 'Stripe':
+                with transaction.atomic():
+                    payment = serializer.save()
+                    session = self._generate_gateway_transaction(payment)
+                    payment.session_id = session.id
+                    payment.session_url = session.url
+                    payment.save(update_fields=["session_id", "session_url"])
+                    return payment
         raise ValidationError(serializer.errors)
+
+    def get_payment_status(self):
+        if self.payment_method == 'Cash':
+            return "PAID"
+        return "PENDING"
