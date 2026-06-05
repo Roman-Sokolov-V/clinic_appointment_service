@@ -205,7 +205,9 @@ LOGIN_REDIRECT_URL = '/users/me/'
 
 PAYMENT_SERVICE_CLASS = "payment.payment_services.stripe_service.StripePayment"
 STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY')
-STRIPE_ENDPOINT_SECRET = os.environ.get('account id acct_1TdjL4GmhnDVlcXt')
+STRIPE_ENDPOINT_SECRET = os.environ.get('STRIPE_ENDPOINT_SECRET')
+BACKEND_SUCCESS_URL= "http://localhost:8000/payments/success/"
+BACKEND_CANCEL_URL= "http://localhost:8000/payments/cancel/"
 
 LOGGING = {
     'version': 1,
@@ -222,22 +224,24 @@ LOGGING = {
         'console': {
             'class': 'logging.StreamHandler',
             'formatter': 'verbose',
+            'level': 'INFO',
         },
         # 2. Запис у файл (щоб логи не зникали після перезапуску сервера)
         'file': {
             'class': 'logging.FileHandler',
             'filename': 'clinic_debug.log',
             'formatter': 'verbose',
+            'level': 'WARNING',
         },
     },
     'loggers': {
         # Створюємо наш кастомний логер для додатків проєкту
         'clinic_api': {
             'handlers': ['console', 'file'],
-            'level': 'INFO',  # Буде логувати INFO, WARNING, ERROR
+            'level': 'INFO',
             'propagate': True,
         },
-        # Додатково можна увімкнути логер самого Django для відлову 500-х помилок
+        # Додатково можна увімкнути логер самого Django
         'django': {
             'handlers': ['console', 'file'],
             'level': 'WARNING',
