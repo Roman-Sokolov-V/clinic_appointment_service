@@ -88,13 +88,18 @@ class AppointmentFilterSerializer(serializers.Serializer):
 
 
 class AppointmentSerializer(serializers.ModelSerializer):
+    frontend_success_url = serializers.URLField(required=False, write_only=True)
+    frontend_cancel_url = serializers.URLField(required=False, write_only=True)
     patient = serializers.PrimaryKeyRelatedField(
         queryset=get_user_model().objects.all(),
         required=False
     )
     class Meta:
         model = Appointment
-        fields = ('id', 'slot', 'patient', 'status', 'booked_at', 'completed_at', 'price')
+        fields = (
+            'id', 'slot', 'patient', 'status', 'booked_at', 'completed_at', 'price',
+            'frontend_success_url', 'frontend_cancel_url'
+        )
         read_only_fields = ('id', 'status', 'booked_at', 'completed_at', 'price')
 
 
@@ -111,7 +116,26 @@ class AppointmentSerializer(serializers.ModelSerializer):
 
 
     def create(self, validated_data):
+        """
+        Create and return a new Appointment instance.
 
+        This method extracts frontend redirection URLs from the validated data
+        and temporarily stores them as instance attributes (`self.frontend_success_url`
+        and `self.frontend_cancel_url`). This allows the calling View/ViewSet to
+        retrieve these URLs later and pass them to the payment gateway service.
+
+        The extracted URLs are popped out of `validated_data` to prevent Django's
+        ORM from throwing an unexpected keyword argument error, as these fields
+        do not exist in the Appointment database model.
+
+        Additionally, it automatically fetches the doctor's current consultation
+        price from the related DoctorSlot and assigns it to the appointment before saving.
+
+        :param validated_data: dict, validated fields from the incoming request.
+        :return: Appointment instance.
+        """
+        self.frontend_success_url = validated_data.pop("frontend_success_url", None)
+        self.frontend_cancel_url = validated_data.pop("frontend_cancel_url", None)
         slot = validated_data["slot"]
         price = (
             DoctorSlot.objects
@@ -120,5 +144,5 @@ class AppointmentSerializer(serializers.ModelSerializer):
             .get()
         )
         validated_data["price"] = price
-        appointment = Appointment.objects.create(**validated_data)
-        return appointment
+        return Appointment.objects.create(**validated_data)
+
