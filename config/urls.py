@@ -29,5 +29,5 @@ urlpatterns = [
     # Стандартні вбудовані візуальні сторінки Django для авторизації (вхід, вихід, зміна пароля).
     # Зазвичай у чистих API проєктах це використовується як запасний варіант або для тестування шаблонів.
     path('accounts/profile', include('django.contrib.auth.urls')),
-    path('/', include('payment.urls'), name='payment'),
+    path('payments/', include('payment.urls'), name='payment'),
 ]
