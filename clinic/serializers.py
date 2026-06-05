@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.db import transaction
@@ -112,6 +114,12 @@ class AppointmentSerializer(serializers.ModelSerializer):
             attrs["slot"],
             serializers.ValidationError
         )
+        now = timezone.now()
+        slot_start = DoctorSlot.objects.get(attrs["slot"]).start
+        if now + timedelta(hours=1) > slot_start:
+            raise serializers.ValidationError(
+                {"booked_at": "You cannot create an appointment with payment later than an hour before slot.start"}
+            )
         return attrs
 
 

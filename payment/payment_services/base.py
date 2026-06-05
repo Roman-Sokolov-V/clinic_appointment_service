@@ -17,6 +17,7 @@ class AppointmentPayment(ABC):
             fee: Decimal | None = None,
             frontend_success_url: str | None = None,
             frontend_cancel_url: str | None = None,
+            expires_at: int | None = None,
     ):
         """
         Initialize the Payment Service Coordinator.
@@ -41,6 +42,7 @@ class AppointmentPayment(ABC):
         self.appointment = appointment
         self.amount = int(fee * 100) if fee else int(appointment.price * 100)
         self.payment_type = 'CANCELLATION_FEE' if fee else 'CONSULTATION'
+        self.expires_at = expires_at
         if frontend_success_url:
             self.success_url = frontend_success_url
         else:

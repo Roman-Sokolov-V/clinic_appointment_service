@@ -34,6 +34,7 @@ class StripePayment(AppointmentPayment):
             mode="payment",
             success_url=self.success_url + query_params,
             cancel_url=self.cancel_url + query_params,
+            expires_at=self.expires_at,
             line_items=[
                 {
                     "price_data": {

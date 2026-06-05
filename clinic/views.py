@@ -1,6 +1,8 @@
 import logging
+from datetime import datetime, timedelta
 
 from django.db import transaction
+from django.utils import timezone
 from django.utils.module_loading import import_string
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -21,6 +23,7 @@ from clinic.serializers import (
     SlotSerializer, AppointmentSerializer, AppointmentFilterSerializer
 )
 from clinic.services.appointment_service import AppointmentService
+from clinic.utils import get_expires_at
 from config.settings import PAYMENT_SERVICE_CLASS
 
 logger = logging.getLogger("clinic_api")
@@ -228,11 +231,14 @@ class AppointmentViewSet(
             # 2. Створюємо платіж
             frontend_success_url = getattr(serializer, "frontend_success_url", None)
             frontend_cancel_url = getattr(serializer, "frontend_cancel_url", None)
+            # todo add expired_at for payment session
+            expires_at = get_expires_at(appointment.slot.start)
             PaymentService = import_string(PAYMENT_SERVICE_CLASS)
             payment = PaymentService(
                 appointment=appointment,
                 frontend_success_url=frontend_success_url,
                 frontend_cancel_url=frontend_cancel_url,
+                expires_at=expires_at,
             ).create_payment()
             return payment
 
