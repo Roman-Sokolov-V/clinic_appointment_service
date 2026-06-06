@@ -1,6 +1,7 @@
 import logging
 
 import stripe
+from django.db import transaction
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -14,6 +15,7 @@ from config.settings import STRIPE_SECRET_KEY
 from config.settings import STRIPE_ENDPOINT_SECRET
 from payment.models import Payment
 from payment.payment_services.base import AppointmentPayment
+from payment.payment_services.stripe_service import StripePayment
 
 logger = logging.getLogger('clinic_api')
 client = stripe.StripeClient(STRIPE_SECRET_KEY)
@@ -22,8 +24,7 @@ endpoint_secret = STRIPE_ENDPOINT_SECRET
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
-#@csrf_exempt
-def webhook_view(request, *args, **kwargs):
+def stripe_webhook_view(request, *args, **kwargs):
     logger.info("start webhook")
     payload = request.stream.read() # instead request.body to get raw request data
 
@@ -45,20 +46,79 @@ def webhook_view(request, *args, **kwargs):
         logger.error("⚠️  Webhook signature verification failed. %s", e)
         raise ParseError(f"⚠️  Webhook signature verification failed. {str(e)}")
 
-    # випадок коли оплата успішна
-    if (
-            event["type"] == "checkout.session.completed"
-            or event["type"] == "checkout.session.async_payment_succeeded"
-    ):
-        logger.info("event received, type - completed")
-        # get session_id
-        session_id = event["data"]["object"]["id"]
-        # set payment.status "COMPLETED"
-        AppointmentPayment.complete_payment(session_id)
+
+    event_dict = event.to_dict()
+    event_type = event_dict["type"]
+
+    # Список подій, які ми свідомо ігноруємо, щоб не смітити в WARNING
+    IGNORED_EVENTS = [
+        "payment_intent.created",
+        "payment_intent.succeeded",
+        "charge.succeeded",
+        "charge.updated"
+    ]
+
+    # 💡Успішна оплата
+    if event_type in ["checkout.session.completed", "checkout.session.async_payment_succeeded"]:
+        session = event_dict["data"]["object"]
+        session_id = session.get("id")
+        intent_id = session.get("payment_intent")
+        payment_status = session.get("payment_status")
+
+        # Перевіряємо умови успіху
+        is_completed_and_paid = (event_type == "checkout.session.completed" and payment_status == "paid")
+        is_async_success = (event_type == "checkout.session.async_payment_succeeded")
+
+        if is_completed_and_paid or is_async_success:
+            StripePayment.complete_payment(session_id, intent_id)
+            logger.info(f"Payment successful for session: {session_id} via {event_type}")
+
+        elif event_type == "checkout.session.completed":
+            # Сюди потрапляємо, якщо сесія завершена, але payment_status != 'paid' (асинхронний платіж)
+            logger.info(f"Checkout completed. Waiting for bank clearing for session: {session_id}")
+
+    #  повернення коштів
+        if event_type == "refund.created":
+            refund_obj = event_dict["data"]["object"]
+            refund_status = refund_obj.get("status")
+
+            # Дістаємо токен, який створили під час створення refund
+            stripe_metadata = refund_obj.get("metadata", {})
+            local_refund_token = stripe_metadata.get("local_refund_token")
+
+            if refund_status == "succeeded" and local_refund_token:
+                with transaction.atomic():
+                    # Шукаємо платіж за нашим токеном
+                    payment = Payment.objects.select_for_update().filter(
+                        provider_metadata__refund_token=local_refund_token
+                    ).first()
+
+                    if payment and payment.status != "REFUNDED":
+                        # Додатково зберігаємо refund.id від Stripe
+                        payment.provider_metadata["refund_id"] = refund_obj.get("id")
+                        payment.status = "REFUNDED"
+                        payment.save(update_fields=["status", "provider_metadata"])
+                        logger.info(f"Payment {payment.id} REFUNDED via token match.")
+
+            elif refund_status == "failed":
+                with transaction.atomic():
+                    payment = Payment.objects.select_for_update().filter(
+                        provider_metadata__refund_token=local_refund_token
+                    ).first()
+                    if payment:
+                        payment.status = "PAID"  # Повертаємо назад, бо гроші не пішли
+                        payment.save(update_fields=["status"])
+                        logger.warning(f"Refund failed for payment {payment.id}. Status reverted to PAID.")
+
+
+    elif event_type in IGNORED_EVENTS:
+        # Тихо пропускаємо технічні івенти Stripe
+        logger.info(f"Stripe event {event_type} received and skipped intentionally.")
 
     else:
-        # Unexpected event type
-        logger.warning("Unexpected payment event.type: %s", event['type'])
+        # Отут дійсно неочікувані або критичні івенти (наприклад, refund, dispute, чи failure)
+        logger.warning("Unexpected payment event.type: %s", event_type)
+
     return Response({"status": "success"}, status=status.HTTP_200_OK)
 
 @api_view(["GET"])

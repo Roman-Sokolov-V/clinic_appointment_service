@@ -25,6 +25,7 @@ from clinic.serializers import (
 from clinic.services.appointment_service import AppointmentService
 from clinic.utils import get_expires_at
 from config.settings import PAYMENT_SERVICE_CLASS
+from payment.models import Payment
 
 logger = logging.getLogger("clinic_api")
 
@@ -229,17 +230,19 @@ class AppointmentViewSet(
             # 1. Зберігаємо візит
             appointment = serializer.save(patient=patient)
             # 2. Створюємо платіж
-            frontend_success_url = getattr(serializer, "frontend_success_url", None)
-            frontend_cancel_url = getattr(serializer, "frontend_cancel_url", None)
+            # frontend_success_url = getattr(serializer, "frontend_success_url", None)
+            # frontend_cancel_url = getattr(serializer, "frontend_cancel_url", None)
+            payment_data = getattr(serializer, "payment_data")
             payment_method = getattr(serializer, "payment_method", None)
-            # todo add expired_at for payment session
             expires_at = get_expires_at(appointment.slot.start)
+            payment_data["expires_at"] = expires_at
             PaymentService = import_string(PAYMENT_SERVICE_CLASS)
             payment = PaymentService(
                 appointment=appointment,
-                frontend_success_url=frontend_success_url,
-                frontend_cancel_url=frontend_cancel_url,
-                expires_at=expires_at,
+                # frontend_success_url=frontend_success_url,
+                # frontend_cancel_url=frontend_cancel_url,
+                payment_data=payment_data,
+                #expires_at=expires_at,
                 payment_method=payment_method
             ).create_payment()
             return payment
@@ -254,35 +257,40 @@ class AppointmentViewSet(
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         payment = self.perform_create(serializer)
-        print(payment)
         # todo send_telegram_notification_task.delay(
         #     appointment_id=serializer.instance.id,
         #     checkout_url=self.payment.session_url
         # )
         headers = self.get_success_headers(serializer.data)
         response_data = serializer.data
-        response_data["checkout_url"] = payment.session_url
+        response_data["checkout_url"] = payment.provider_metadata.get("session_url") if payment.provider_metadata else None
         return Response(response_data, status=status.HTTP_201_CREATED, headers=headers)
+
+
 
     @action(methods=["POST"], detail=True)
     def cancel(self, request, pk=None):
-        appointment = self.get_object()
-        self.check_object_permissions(request, appointment)
-        appointment = AppointmentService.cancel_appointment(
-            appointment=appointment,
-            user=request.user
-        )
-
-        return Response(
-            {"status": appointment.status},
-            status=status.HTTP_200_OK
-        )
+        pass
+        # appointment = self.get_object()
+        # self.check_object_permissions(request, appointment)
+        # # todo check if payment paid
+        # payment = Payment.objects.get(appointment=appointment)
+        # if payment.status == "PAID":
+        # # todo make re
+        #
+        # #TODO Сanceletion fee
+        # #todo automaicly cancel withot fee paid expire time
+        # return Response(
+        #     {"status": appointment.status},
+        #     status=status.HTTP_200_OK
+        # )
 
     @action(methods=["POST"], detail=True)
     def complete(self, request, pk=None):
         appointment = self.get_object()
         self.check_object_permissions(request, appointment)
         appointment = AppointmentService.complete_appointment(request, appointment)
+        #todo complete
         return Response(
             {"status": appointment.status},
             status=status.HTTP_200_OK

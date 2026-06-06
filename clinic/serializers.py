@@ -88,29 +88,67 @@ class AppointmentFilterSerializer(serializers.Serializer):
 
 
 
+class StripePaymentDataSerializer(serializers.Serializer):
+    frontend_success_url = serializers.URLField(required=False, write_only=True)
+    frontend_cancel_url = serializers.URLField(required=False, write_only=True)
+
+class CashPaymentDataSerializer(serializers.Serializer):
+    pass
+
 
 class AppointmentSerializer(serializers.ModelSerializer):
     slot = serializers.PrimaryKeyRelatedField(
         queryset=DoctorSlot.objects.select_related("doctor").all()
     )
-    frontend_success_url = serializers.URLField(required=False, write_only=True)
-    frontend_cancel_url = serializers.URLField(required=False, write_only=True)
+
+    payment_data = serializers.JSONField(write_only=True, required=False)
     patient = serializers.PrimaryKeyRelatedField(
         queryset=get_user_model().objects.all(),
         required=False
     )
     payment_method = serializers.ChoiceField(
-        choices=["Stripe", "Cash"], # додати якщо з'являться нові методи крім Cash Stripe
-        default='Stripe',
+        choices=["STRIPE", "CASH"], # додати якщо з'являться нові методи крім Cash Stripe
+        default='STRIPE',
         write_only=True
     )
     class Meta:
         model = Appointment
         fields = (
             'id', 'slot', 'patient', 'status', 'booked_at', 'completed_at', 'price',
-            'frontend_success_url', 'frontend_cancel_url', 'payment_method'
+            'payment_method', 'payment_data',
         )
         read_only_fields = ('id', 'status', 'booked_at', 'completed_at', 'price')
+
+    def to_internal_value(self, data):
+        """
+        Цей метод запускається ДО валідації.
+        Він дивиться на payment_method і динамічно валідує payment_data.
+        """
+        # Спочатку запускаємо стандартну збірку даних DRF
+        internal_data = super().to_internal_value(data)
+
+        payment_method = data.get('payment_method', 'STRIPE').upper()
+        raw_payment_data = data.get('payment_data', {})
+
+        # Мапа: який метод — який серіалізатор викликати
+        serializer_mapping = {
+            'STRIPE': StripePaymentDataSerializer,
+            'CASH': CashPaymentDataSerializer,
+        }
+
+        serializer_class = serializer_mapping.get(payment_method)
+
+        if serializer_class:
+            # Контекст передаємо, якщо серіалізаторам потрібен request
+            #context = self.get_serializer_context()
+            #serializer = serializer_class(data=raw_payment_data, context=context)
+            serializer = serializer_class(data=raw_payment_data)
+            serializer.is_valid(raise_exception=True)
+
+            # Записуємо вже провалідовані та очищені дані назад
+            internal_data['payment_data'] = serializer.validated_data
+
+        return internal_data
 
 
     def validate(self, attrs):
@@ -125,27 +163,26 @@ class AppointmentSerializer(serializers.ModelSerializer):
         slot_start = attrs["slot"].start
         payment_method = attrs["payment_method"]
         user = self.context['request'].user
-        is_late_to_book_online = timezone.now() + timedelta(hours=1) > slot_start
+        is_late_to_book_with_stripe = timezone.now() + timedelta(hours=1) > slot_start
         if payment_method != "Stripe" and not user.is_staff:
             raise serializers.ValidationError(
                 {"payment_method": "Patients are not allowed to specify this field"}
             )
-        if payment_method == "Stripe":
-            if is_late_to_book_online:
-                if user.is_staff:
-                    raise serializers.ValidationError(
-                        {
-                            "booked_at": "Ordering online later than an hour before the start of the appointment"
-                                         " is not possible, You can offer the client to pay in cash and create"
-                                         " appointment with field payment_method = 'Cash', after client paid"
-                        }
-                    )
+        if payment_method == "Stripe" and is_late_to_book_with_stripe:
+            if user.is_staff:
                 raise serializers.ValidationError(
-                        {
-                            "booked_at": "Ordering by online later than an hour before the start of the appointment"
-                                      " is not possible, try contacting the reception"
-                        }
-                    )
+                    {
+                        "booked_at": "Ordering online later than an hour before the start of the appointment"
+                                     " is not possible, You can offer the client to pay in cash and create"
+                                     " appointment with field payment_method = 'Cash', after client paid"
+                    }
+                )
+            raise serializers.ValidationError(
+                    {
+                        "booked_at": "Ordering by online later than an hour before the start of the appointment"
+                                  " is not possible, try contacting the reception"
+                    }
+                )
         return attrs
 
 
@@ -168,11 +205,15 @@ class AppointmentSerializer(serializers.ModelSerializer):
         :param validated_data: dict, validated fields from the incoming request.
         :return: Appointment instance.
         """
-        self.frontend_success_url = validated_data.pop("frontend_success_url", None)
-        self.frontend_cancel_url = validated_data.pop("frontend_cancel_url", None)
-        self.payment_method = validated_data.pop("payment_method", None)
-        slot = validated_data["slot"]
+        # self.frontend_success_url = validated_data.pop("frontend_success_url", None)
+        # self.frontend_cancel_url = validated_data.pop("frontend_cancel_url", None)
+        self.payment_data: dict = validated_data.pop("payment_data", None)
+        self.payment_method: str = validated_data.pop("payment_method", None)
+        slot: DoctorSlot = validated_data["slot"]
         validated_data["price"] = slot.doctor.price_per_visit
 
         return Appointment.objects.create(**validated_data)
+
+
+
 

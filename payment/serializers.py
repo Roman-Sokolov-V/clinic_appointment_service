@@ -10,8 +10,7 @@ class PaymentSerializer(serializers.ModelSerializer):
             "method",
             "type",
             "appointment",
-            "session_url",
-            "session_id",
             "money_to_pay",
+            "provider_metadata"
         )
         read_only_fields = ("id",)

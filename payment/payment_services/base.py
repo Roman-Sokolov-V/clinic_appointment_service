@@ -1,13 +1,16 @@
+import logging
 from abc import ABC, abstractmethod
 from decimal import Decimal
+from typing import Any
 
 from django.db import transaction
 from rest_framework.exceptions import ValidationError
 
 from clinic.models import Appointment
-from config.settings import BACKEND_SUCCESS_URL, BACKEND_CANCEL_URL
 from payment.models import Payment
 from payment.serializers import PaymentSerializer
+
+logger = logging.getLogger("clinic_api")
 
 
 class AppointmentPayment(ABC):
@@ -15,9 +18,7 @@ class AppointmentPayment(ABC):
             self,
             appointment: Appointment,
             fee: Decimal | None = None,
-            frontend_success_url: str | None = None,
-            frontend_cancel_url: str | None = None,
-            expires_at: int | None = None,
+            payment_data: dict | None = None,
             payment_method: str | None = None,
     ):
         """
@@ -43,16 +44,8 @@ class AppointmentPayment(ABC):
         self.appointment = appointment
         self.amount = int(fee * 100) if fee else int(appointment.price * 100)
         self.payment_type = 'CANCELLATION_FEE' if fee else 'CONSULTATION'
-        self.expires_at = expires_at
         self.payment_method = payment_method
-        if frontend_success_url:
-            self.success_url = frontend_success_url
-        else:
-            self.success_url = BACKEND_SUCCESS_URL
-        if frontend_cancel_url:
-            self.cancel_url = frontend_cancel_url
-        else:
-            self.cancel_url = BACKEND_CANCEL_URL
+        self.payment_data = payment_data
 
 
     @abstractmethod
@@ -72,18 +65,14 @@ class AppointmentPayment(ABC):
         pass
 
     @staticmethod
-    def complete_payment(session_id):
-        """
-        A static method called in success/ View changes the status to 'COMPLETED'
-        """
-        with transaction.atomic():
-            try:
-                payment = Payment.objects.select_for_update().get(session_id=session_id)
-                payment.status = "COMPLETED"
-                payment.save(update_fields=["status"])
-                return payment
-            except Payment.DoesNotExist:
-                raise ValidationError({"error": "Payment session not found"})
+    @abstractmethod
+    def _make_refund(payment: Payment):
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def complete_payment(args, kwargs):
+        pass
 
     def create_payment(self):
         """
@@ -104,30 +93,31 @@ class AppointmentPayment(ABC):
         :raises ValidationError: If internal serializer constraints fail.
         :return: Updated Payment model instance containing the gateway properties.
         """
-        payload = {
+
+        basic_payload = {
             "appointment": self.appointment.id,
             "money_to_pay": self.amount / 100,
             "type": self.payment_type,
             "method": self.payment_method,
-            "status": self.get_payment_status(),
+            # status PENDING за замовченням
         }
+        if self.payment_method == 'Cash':
+            return self.cash_payment(basic_payload)
 
-        serializer = PaymentSerializer(data=payload)
-        if serializer.is_valid():
-            if self.payment_method == 'Cash':
-                payment = serializer.save()
+        serializer = PaymentSerializer(data=basic_payload)
+        if serializer.is_valid(raise_exception=True):
+            payment = serializer.save()
+            with transaction.atomic():
+                provider_metadata = self._generate_gateway_transaction(payment)
+                payment.provider_metadata = provider_metadata
+                payment.save(update_fields=["provider_metadata"])
                 return payment
-            elif self.payment_method == 'Stripe':
-                with transaction.atomic():
-                    payment = serializer.save()
-                    session = self._generate_gateway_transaction(payment)
-                    payment.session_id = session.id
-                    payment.session_url = session.url
-                    payment.save(update_fields=["session_id", "session_url"])
-                    return payment
         raise ValidationError(serializer.errors)
 
-    def get_payment_status(self):
-        if self.payment_method == 'Cash':
-            return "PAID"
-        return "PENDING"
+    def cash_payment(self, payload: dict):
+        payload["status"] = "PAID"
+        serializer = PaymentSerializer(data=payload)
+        if serializer.is_valid(raise_exception=True):
+            return serializer.save()
+
+
