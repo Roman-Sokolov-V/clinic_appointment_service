@@ -203,7 +203,7 @@ SOCIALACCOUNT_EMAIL_VERIFICATION = "none"
 LOGIN_REDIRECT_URL = '/users/me/'
 
 
-PAYMENT_SERVICE_CLASS = "payment.payment_services.stripe_service.StripePayment"
+#PAYMENT_SERVICE_CLASS = "payment.payment_services.stripe_service.StripePayment"
 STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY')
 STRIPE_ENDPOINT_SECRET = os.environ.get('STRIPE_ENDPOINT_SECRET')
 BACKEND_SUCCESS_URL= "http://localhost:8000/payments/success/"
@@ -249,3 +249,4 @@ LOGGING = {
         },
     },
 }
+

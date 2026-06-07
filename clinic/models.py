@@ -1,5 +1,6 @@
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
-from django.db.models import Q, F
+from django.db.models import Q, F, Model, UniqueConstraint
 from django.db.models.constraints import CheckConstraint
 from django.utils import timezone
 
@@ -68,6 +69,10 @@ class Appointment(models.Model):
     booked_at = models.DateField(auto_now_add=True)
     completed_at = models.DateField(null=True, blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)  # під час створення з Doctor.price_per_visit але не змінюється автоматично якщо зміниться price_per_visit
+    percent_fee = models.IntegerField() # це потенційний штраф у відсотоках, на випадок відміни зустрічи під час створення appointment з GlobalClinicSettings.fee
+    window_fee = models.IntegerField()  # проміжок часу перед початком зустрічі в якому при скасуванні застосовується штраф
+    class Meta:
+        constraints = []
 
     @staticmethod
     def validate_slot_not_expired(slot: DoctorSlot, error_to_raise):
@@ -92,4 +97,30 @@ class Appointment(models.Model):
     def clean(self):
         self.validate_slot_not_expired(self.slot, ValueError)
         self.validate_slot_not_already_booked(self.slot, ValueError)
+
+class GlobalClinicSettings(models.Model):
+    fee = models.IntegerField(
+        default=10, # in %
+        validators=[MinValueValidator(0), MaxValueValidator(100)]
+    )
+    fee_window = models.IntegerField(
+        default=120, # in minutes
+        validators=[MinValueValidator(0),],
+    )
+    singleton_id = models.IntegerField(default=1, editable=False)
+
+    class Meta:
+        constraints = [
+            UniqueConstraint(fields=["singleton_id"], name="singleton"),
+            CheckConstraint(
+                condition=Q(singleton_id=1),
+                name="check_singleton_id_is_always_one"
+            ),
+            CheckConstraint(
+                condition=Q(fee__gte=0) & Q(fee__lte=100), name="check_fee_gte_0_lte_100"
+            ),
+            CheckConstraint(
+                condition=Q(fee_window__gte=0), name="check_fee_window__gte_0"
+            )
+        ]
 

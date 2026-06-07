@@ -1,14 +1,14 @@
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import AbstractUser
+
 from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import get_object_or_404
 
-from clinic.models import Specialization, Doctor, DoctorSlot, Appointment, APPOINTMENT_STATUS
+from clinic.models import Specialization, Doctor, DoctorSlot, Appointment, APPOINTMENT_STATUS, GlobalClinicSettings
 
 
 class SpecializationSerializer(serializers.ModelSerializer):
@@ -104,7 +104,8 @@ class AppointmentSerializer(serializers.ModelSerializer):
     payment_data = serializers.JSONField(write_only=True, required=False)
     patient = serializers.PrimaryKeyRelatedField(
         queryset=get_user_model().objects.all(),
-        required=False
+        required=False,
+        allow_null=True
     )
     payment_method = serializers.ChoiceField(
         choices=["STRIPE", "CASH"], # додати якщо з'являться нові методи крім Cash Stripe
@@ -115,9 +116,9 @@ class AppointmentSerializer(serializers.ModelSerializer):
         model = Appointment
         fields = (
             'id', 'slot', 'patient', 'status', 'booked_at', 'completed_at', 'price',
-            'payment_method', 'payment_data',
+            'payment_method', 'payment_data', 'percent_fee', 'window_fee'
         )
-        read_only_fields = ('id', 'status', 'booked_at', 'completed_at', 'price')
+        read_only_fields = ('id', 'status', 'booked_at', 'completed_at', 'price', 'percent_fee', 'window_fee')
 
     def to_internal_value(self, data):
         """
@@ -139,9 +140,6 @@ class AppointmentSerializer(serializers.ModelSerializer):
         serializer_class = serializer_mapping.get(payment_method)
 
         if serializer_class:
-            # Контекст передаємо, якщо серіалізаторам потрібен request
-            #context = self.get_serializer_context()
-            #serializer = serializer_class(data=raw_payment_data, context=context)
             serializer = serializer_class(data=raw_payment_data)
             serializer.is_valid(raise_exception=True)
 
@@ -149,6 +147,34 @@ class AppointmentSerializer(serializers.ModelSerializer):
             internal_data['payment_data'] = serializer.validated_data
 
         return internal_data
+
+    def validate_patient(self, value):
+        request = self.context.get('request')
+        if not request or not request.user:
+            return value
+
+        current_user = request.user
+
+        # Сценарій 1: Користувач — НЕ адмін (звичайний пацієнт)
+        if not current_user.is_staff:
+            # Якщо він намагається записати когось іншого
+            if value is not None and value != current_user:
+                raise serializers.ValidationError(
+                    "You are not allowed to create appointment not for yourself. "
+                    "To create appointment for yourself, you do not have to fill field 'patient'"
+                )
+            # Якщо він залишив поле порожнім (або прийшов null) — підставляємо його самого
+            if value is None:
+                return current_user
+
+        # Сценарій 2: Користувач — Адмін
+        else:
+            # Адмін обов'язково має вказати, для кого створюється візит
+            if value is None:
+                raise serializers.ValidationError("Required for admin")
+
+        return value
+
 
 
     def validate(self, attrs):
@@ -177,12 +203,14 @@ class AppointmentSerializer(serializers.ModelSerializer):
                                      " appointment with field payment_method = 'Cash', after client paid"
                     }
                 )
-            raise serializers.ValidationError(
-                    {
-                        "booked_at": "Ordering by online later than an hour before the start of the appointment"
-                                  " is not possible, try contacting the reception"
-                    }
-                )
+            else:
+                raise serializers.ValidationError(
+                        {
+                            "booked_at": "You cannot place an order online less than one hour before the appointment "
+                                         "starts, but you can still sign up in person and pay in cash if there are "
+                                         "still openings available before the appointment begins."
+                        }
+                    )
         return attrs
 
 
@@ -205,15 +233,29 @@ class AppointmentSerializer(serializers.ModelSerializer):
         :param validated_data: dict, validated fields from the incoming request.
         :return: Appointment instance.
         """
-        # self.frontend_success_url = validated_data.pop("frontend_success_url", None)
-        # self.frontend_cancel_url = validated_data.pop("frontend_cancel_url", None)
         self.payment_data: dict = validated_data.pop("payment_data", None)
         self.payment_method: str = validated_data.pop("payment_method", None)
         slot: DoctorSlot = validated_data["slot"]
         validated_data["price"] = slot.doctor.price_per_visit
+        settings, _ = GlobalClinicSettings.objects.get_or_create(singleton_id=1)
+        validated_data["percent_fee"] = settings.fee
+        validated_data["fee_window"] = settings.fee_window
 
         return Appointment.objects.create(**validated_data)
 
 
 
 
+class GlobalClinicSettingsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GlobalClinicSettings
+        fields = ("id", "fee", "fee_window", "singleton_id")
+        read_only_fields = ("id", "singleton_id")
+
+    def create(self, validated_data):
+        if GlobalClinicSettings.objects.all().exists():
+            raise serializers.ValidationError(
+                {
+                    "settings": "Only 1 instance possible, try update instead create"
+                }
+            )

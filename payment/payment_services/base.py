@@ -1,7 +1,6 @@
 import logging
 from abc import ABC, abstractmethod
 from decimal import Decimal
-from typing import Any
 
 from django.db import transaction
 from rest_framework.exceptions import ValidationError
@@ -66,12 +65,12 @@ class AppointmentPayment(ABC):
 
     @staticmethod
     @abstractmethod
-    def _make_refund(payment: Payment):
+    def initiate_refund(payment: Payment, *args, **kwargs):
         pass
 
     @staticmethod
     @abstractmethod
-    def complete_payment(args, kwargs):
+    def complete_payment(*args, **kwargs):
         pass
 
     def create_payment(self):
@@ -119,5 +118,6 @@ class AppointmentPayment(ABC):
         serializer = PaymentSerializer(data=payload)
         if serializer.is_valid(raise_exception=True):
             return serializer.save()
+
 
 

@@ -26,6 +26,7 @@ from clinic.services.appointment_service import AppointmentService
 from clinic.utils import get_expires_at
 from config.settings import PAYMENT_SERVICE_CLASS
 from payment.models import Payment
+from payment.payment_services import get_payment_service
 
 logger = logging.getLogger("clinic_api")
 
@@ -185,67 +186,63 @@ class AppointmentViewSet(
         return queryset
 
 
-    def perform_create(self, serializer):
-        """
-        Perform the creation of an appointment and initialize its Stripe payment flow.
-
-        Business Rules & Validation:
-        1. Staff members (admins) are allowed to book appointments for any user,
-           but they MUST explicitly provide a 'patient' ID.
-        2. Regular patients cannot book appointments for anyone else. If they provide
-           a 'patient' field that doesn't match their own user ID, a ValidationError is raised.
-        3. If a regular patient leaves the 'patient' field empty, it automatically defaults
-           to their own user profile.
-
-        Architecture & Data Flow:
-        The entire process is wrapped in a database `transaction.atomic()` block.
-        First, the appointment is saved. Then, the method dynamically extracts the
-        `frontend_success_url` and `frontend_cancel_url` that were temporarily captured
-        by the serializer during its validation/creation phase.
-
-        Finally, it initializes the designated PaymentService (e.g., StripePayment),
-        injecting the newly created appointment and the frontend redirection targets
-        to securely generate the payment session.
-
-        :param serializer: AppointmentSerializer instance with validated data.
-        :raises ValidationError: If permission checks fail or admin request lacks a patient.
-        :return: Payment model instance representing the pending Stripe transaction.
-        """
-
-        patient = serializer.validated_data.get("patient")
-        if self.request.user.is_staff:
-            if not patient:
-                raise ValidationError({"patient": "Required for admin"})
-        elif patient and patient != self.request.user:
-                raise ValidationError(
-                    {
-                        "patient": "You are not allowed to create appointment not for yourself."
-                                   " To create appointment for yourself, you do not have to fill field 'patient'"
-                    }
-                )
-        else:
-            patient = self.request.user
-
-        with transaction.atomic():
-            # 1. Зберігаємо візит
-            appointment = serializer.save(patient=patient)
-            # 2. Створюємо платіж
-            # frontend_success_url = getattr(serializer, "frontend_success_url", None)
-            # frontend_cancel_url = getattr(serializer, "frontend_cancel_url", None)
-            payment_data = getattr(serializer, "payment_data")
-            payment_method = getattr(serializer, "payment_method", None)
-            expires_at = get_expires_at(appointment.slot.start)
-            payment_data["expires_at"] = expires_at
-            PaymentService = import_string(PAYMENT_SERVICE_CLASS)
-            payment = PaymentService(
-                appointment=appointment,
-                # frontend_success_url=frontend_success_url,
-                # frontend_cancel_url=frontend_cancel_url,
-                payment_data=payment_data,
-                #expires_at=expires_at,
-                payment_method=payment_method
-            ).create_payment()
-            return payment
+    # def perform_create(self, serializer):
+    #     """
+    #     Perform the creation of an appointment and initialize its Stripe payment flow.
+    #
+    #     Business Rules & Validation:
+    #     1. Staff members (admins) are allowed to book appointments for any user,
+    #        but they MUST explicitly provide a 'patient' ID.
+    #     2. Regular patients cannot book appointments for anyone else. If they provide
+    #        a 'patient' field that doesn't match their own user ID, a ValidationError is raised.
+    #     3. If a regular patient leaves the 'patient' field empty, it automatically defaults
+    #        to their own user profile.
+    #
+    #     Architecture & Data Flow:
+    #     The entire process is wrapped in a database `transaction.atomic()` block.
+    #     First, the appointment is saved. Then, the method dynamically extracts the
+    #     `frontend_success_url` and `frontend_cancel_url` that were temporarily captured
+    #     by the serializer during its validation/creation phase.
+    #
+    #     Finally, it initializes the designated PaymentService (e.g., StripePayment),
+    #     injecting the newly created appointment and the frontend redirection targets
+    #     to securely generate the payment session.
+    #
+    #     :param serializer: AppointmentSerializer instance with validated data.
+    #     :raises ValidationError: If permission checks fail or admin request lacks a patient.
+    #     :return: Payment model instance representing the pending Stripe transaction.
+    #     """
+    #
+    #     patient = serializer.validated_data.get("patient")
+    #     if self.request.user.is_staff:
+    #         if not patient:
+    #             raise ValidationError({"patient": "Required for admin"})
+    #     elif patient and patient != self.request.user:
+    #             raise ValidationError(
+    #                 {
+    #                     "patient": "You are not allowed to create appointment not for yourself."
+    #                                " To create appointment for yourself, you do not have to fill field 'patient'"
+    #                 }
+    #             )
+    #     else:
+    #         patient = self.request.user
+    #
+    #     with transaction.atomic():
+    #         # 1. Зберігаємо візит
+    #         appointment = serializer.save(patient=patient)
+    #         # 2. Створюємо платіж
+    #
+    #         payment_data = getattr(serializer, "payment_data")
+    #         payment_method = getattr(serializer, "payment_method", "STRIPE")
+    #         expires_at = get_expires_at(appointment.slot.start)
+    #         payment_data["expires_at"] = expires_at
+    #         PaymentService = get_payment_service(payment_method)
+    #         payment = PaymentService(
+    #             appointment=appointment,
+    #             payment_data=payment_data,
+    #             payment_method=payment_method
+    #         ).create_payment()
+    #         return payment
 
     def create(self, request, *args, **kwargs):
         """
@@ -254,43 +251,65 @@ class AppointmentViewSet(
         Extends the standard response by appending a 'checkout_url'. The frontend
         should use this URL to redirect the patient to the Stripe checkout page.
         """
+        # serializer = self.get_serializer(data=request.data)
+        # serializer.is_valid(raise_exception=True)
+        # payment = self.perform_create(serializer)
+        # # todo send_telegram_notification_task.delay(
+        # #     appointment_id=serializer.instance.id,
+        # #     checkout_url=self.payment.session_url
+        # # )
+        # headers = self.get_success_headers(serializer.data)
+        # response_data = serializer.data
+        # response_data["checkout_url"] = payment.provider_metadata.get("session_url") if payment.provider_metadata else None
+        # return Response(response_data, status=status.HTTP_201_CREATED, headers=headers)
+        # 1. Базова валідація вхідного JSON
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        payment = self.perform_create(serializer)
-        # todo send_telegram_notification_task.delay(
-        #     appointment_id=serializer.instance.id,
-        #     checkout_url=self.payment.session_url
-        # )
-        headers = self.get_success_headers(serializer.data)
-        response_data = serializer.data
-        response_data["checkout_url"] = payment.provider_metadata.get("session_url") if payment.provider_metadata else None
-        return Response(response_data, status=status.HTTP_201_CREATED, headers=headers)
+        # Дістаємо дані для Stripe, які серіалізатор витягнув під час validation
+        payment_method = getattr(serializer, "payment_method", "STRIPE")
+        payment_data = getattr(serializer, "payment_data", {})
 
+        # Викликаємо сервісний шар
+        appointment, payment = AppointmentService.create_appointment(
+            slot_id=serializer.validated_data["slot"].id,
+            patient=serializer.validated_data["patient"],
+            payment_method=payment_method,
+            payment_data=payment_data
+        )
+
+        # 5. Todo: Твій Селері таск тепер викликати супер-зручно,
+        # бо у нас є і чіткий id візиту, і об'єкт платежу:
+        # send_telegram_notification_task.delay(
+        #     appointment_id=appointment.id,
+        #     checkout_url=payment.provider_metadata.get("session_url")
+        # )
+
+        # 6. Формуємо чисту відповідь
+        response_data = self.get_serializer(appointment).data
+        response_data["checkout_url"] = payment.provider_metadata.get(
+            "session_url") if payment.provider_metadata else None
+
+        headers = self.get_success_headers(response_data)
+        return Response(response_data, status=status.HTTP_201_CREATED, headers=headers)
 
 
     @action(methods=["POST"], detail=True)
     def cancel(self, request, pk=None):
-        pass
-        # appointment = self.get_object()
-        # self.check_object_permissions(request, appointment)
-        # # todo check if payment paid
-        # payment = Payment.objects.get(appointment=appointment)
-        # if payment.status == "PAID":
-        # # todo make re
-        #
-        # #TODO Сanceletion fee
-        # #todo automaicly cancel withot fee paid expire time
-        # return Response(
-        #     {"status": appointment.status},
-        #     status=status.HTTP_200_OK
-        # )
+        appointment = self.get_object()
+        self.check_object_permissions(request, appointment)
+        appointment = AppointmentService.cancel_appointment(appointment=appointment)
+
+
+        return Response(
+            {"status": appointment.status},
+            status=status.HTTP_200_OK
+        )
 
     @action(methods=["POST"], detail=True)
     def complete(self, request, pk=None):
         appointment = self.get_object()
         self.check_object_permissions(request, appointment)
-        appointment = AppointmentService.complete_appointment(request, appointment)
-        #todo complete
+        appointment = AppointmentService.complete_appointment(appointment=appointment)
         return Response(
             {"status": appointment.status},
             status=status.HTTP_200_OK

@@ -1,5 +1,4 @@
 import uuid
-from decimal import Decimal
 
 import stripe
 from django.db import transaction
@@ -80,7 +79,7 @@ class StripePayment(AppointmentPayment):
 
 
     @staticmethod
-    def initiate_refund(payment: Payment, fee: int = 0) -> str:
+    def initiate_refund(payment: Payment, fee: int = 0, *args, **kwargs) -> None:
         if payment.status != "PAID":
             raise ValidationError({"error": "Refund impossible"})
 
@@ -109,11 +108,11 @@ class StripePayment(AppointmentPayment):
             "metadata": {"local_refund_token": local_refund_token}
         }
         if fee > 0:
-            refund_args["amount"] = int((payment.money_to_pay * 100) * (100 - fee) / 100)
+            cents_to_refund = (payment.money_to_pay * 100) * (100 - fee) / 100
+            refund_args["amount"] = int(round(cents_to_refund))
 
         try:
             # Відправляємо в Stripe.
-            # Навіть якщо вебхук вистрілить миттєво, Stripe ПЕРЕДАСЬ наш токен назад у вебхуку!
             client.v1.refunds.create(**refund_args)
         except Exception as e:
             # Ролбек статусу, якщо Stripe відмовив
@@ -123,4 +122,3 @@ class StripePayment(AppointmentPayment):
                 payment.save(update_fields=["status"])
             raise ValidationError({"error": f"Stripe rejected refund: {str(e)}"})
 
-        return local_refund_token

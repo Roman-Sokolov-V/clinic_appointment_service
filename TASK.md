@@ -109,7 +109,7 @@ Resources:
 - [x]  POST: appointments/ - create appointment (fails if slot already has a BOOKED appointment)
 - [x]  GET: appointments/?patient_id=...&doctor_id=...&status=...&from=&to= - list appointments
 - [x]  GET: appointments/<id>/ - get appointment detail
-- [ ]  POST: appointments/<id>/cancel/ - cancel appointment; late-cancel may create CANCELLATION_FEE
+- [x]  POST: appointments/<id>/cancel/ - cancel appointment; late-cancel may create CANCELLATION_FEE
 - [ ]  POST: appointments/<id>/complete/ - mark completed
 - [ ]  POST: appointments/<id>/no-show/ - (staff) mark as NO_SHOW (normally set by scheduled job after slot end)
 ### Notifications Service (Telegram):
