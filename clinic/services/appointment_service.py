@@ -75,8 +75,6 @@ class AppointmentService:
 
         # 1. Блокуємо слот від Race Conditions
         slot = DoctorSlot.objects.select_for_update().get(id=slot_id)
-        if slot.is_booked:
-            raise ValidationError({"slot": "This slot is already booked."})
 
         # 2. Завантажуємо налаштування клініки (наш load метод із get_or_create)
         clinic_settings = GlobalClinicSettings.get_or_create(singleton_id=1) # не підтягується імпорт методу
@@ -86,7 +84,7 @@ class AppointmentService:
             slot=slot,
             patient=patient,
             status="BOOKED",
-            price=slot.doctor.price,  # Заморожуємо ціну доктора
+            price=slot.doctor.price_per_visit,  # Заморожуємо ціну доктора
             percent_fee=clinic_settings.fee,  # Заморожуємо штраф
             window_fee=clinic_settings.fee_window  # Заморожуємо вікно часу
         )
