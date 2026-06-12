@@ -77,7 +77,7 @@ class AppointmentService:
         slot = DoctorSlot.objects.select_for_update().get(id=slot_id)
 
         # 2. Завантажуємо налаштування клініки (наш load метод із get_or_create)
-        clinic_settings = GlobalClinicSettings.get_or_create(singleton_id=1) # не підтягується імпорт методу
+        clinic_settings = GlobalClinicSettings.objects.get_or_create(singleton_id=1)[0]
 
         # 3. Створюємо Appointment із замороженими фінансами
         appointment = Appointment.objects.create(
