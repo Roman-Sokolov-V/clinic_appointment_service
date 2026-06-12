@@ -69,8 +69,8 @@ class Appointment(models.Model):
     booked_at = models.DateField(auto_now_add=True)
     completed_at = models.DateField(null=True, blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)  # під час створення з Doctor.price_per_visit але не змінюється автоматично якщо зміниться price_per_visit
-    percent_fee = models.IntegerField() # це потенційний штраф у відсотоках, на випадок відміни зустрічи під час створення appointment з GlobalClinicSettings.fee
-    window_fee = models.IntegerField()  # проміжок часу перед початком зустрічі в якому при скасуванні застосовується штраф
+    percent_fee = models.IntegerField(default=10) # це потенційний штраф у відсотоках, на випадок відміни зустрічи під час створення appointment з GlobalClinicSettings.fee
+    window_fee = models.IntegerField(default=120)  # проміжок часу перед початком зустрічі в якому при скасуванні застосовується штраф
     class Meta:
         constraints = []
 

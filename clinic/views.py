@@ -24,7 +24,7 @@ from clinic.serializers import (
 )
 from clinic.services.appointment_service import AppointmentService
 from clinic.utils import get_expires_at
-from config.settings import PAYMENT_SERVICE_CLASS
+
 from payment.models import Payment
 from payment.payment_services import get_payment_service
 
