@@ -31,6 +31,12 @@ class DoctorSlot(models.Model):
             CheckConstraint(condition=Q(end__gt=F("start")), name='doctor_slot_end_later_start'),
         ]
 
+    def __str__(self):
+        return f'id: {self.id}, doctor_id: {self.doctor.id}'
+
+    def is_available(self):
+        return not Appointment.objects.filter(slot=self.id, status="BOOKED").exists()
+
     @staticmethod
     def validate_slots_not_intersect(doctor, start, end, error_to_raise, pk):
         queryset = DoctorSlot.objects.filter(

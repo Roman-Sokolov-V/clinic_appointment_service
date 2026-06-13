@@ -89,9 +89,6 @@ class AppointmentService:
             window_fee=clinic_settings.fee_window  # Заморожуємо вікно часу
         )
 
-        # 4. Оновлюємо статус слота
-        slot.is_booked = True
-        slot.save(update_fields=["is_booked"])
 
         # 5. Ініціалізуємо платіж (твій поточний код, але в чистому вигляді)
         payment_data["expires_at"] = get_expires_at(slot.start)

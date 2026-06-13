@@ -76,9 +76,6 @@ class BulkCreateSlotsSerializer(serializers.Serializer):
 
 class AppointmentFilterSerializer(serializers.Serializer):
     """serializer for filtering appointments"""
-
-    #patient_id = serializers.IntegerField(required=False)
-    #doctor_id = serializers.IntegerField(required=False)
     status = serializers.ChoiceField(
         choices=[value for value, _ in APPOINTMENT_STATUS],
         required=False
@@ -105,7 +102,7 @@ class AppointmentSerializer(serializers.ModelSerializer):
     patient = serializers.PrimaryKeyRelatedField(
         queryset=get_user_model().objects.all(),
         required=False,
-        allow_null=True
+        default=serializers.CurrentUserDefault()
     )
     payment_method = serializers.ChoiceField(
         choices=["STRIPE", "CASH"], # додати якщо з'являться нові методи крім Cash Stripe
@@ -148,31 +145,16 @@ class AppointmentSerializer(serializers.ModelSerializer):
 
         return internal_data
 
+
     def validate_patient(self, value):
-        request = self.context.get('request')
-        if not request or not request.user:
-            return value
-
-        current_user = request.user
-
-        # Сценарій 1: Користувач — НЕ адмін (звичайний пацієнт)
-        if not current_user.is_staff:
-            # Якщо він намагається записати когось іншого
-            if value is not None and value != current_user:
-                raise serializers.ValidationError(
-                    "You are not allowed to create appointment not for yourself. "
-                    "To create appointment for yourself, you do not have to fill field 'patient'"
-                )
-            # Якщо він залишив поле порожнім (або прийшов null) — підставляємо його самого
-            if value is None:
-                return current_user
-
-        # Сценарій 2: Користувач — Адмін
-        else:
-            # Адмін обов'язково має вказати, для кого створюється візит
-            if value is None:
-                raise serializers.ValidationError("Required for admin")
-
+        current_user = self.context['request'].user
+        if current_user.is_staff and current_user == value:
+            raise serializers.ValidationError("Required for admin")
+        if value != current_user and not current_user.is_staff:
+            raise serializers.ValidationError(
+                "You are not allowed to create appointment not for yourself. "
+                "To create appointment for yourself, you do not have to fill field 'patient'"
+            )
         return value
 
 
@@ -190,10 +172,7 @@ class AppointmentSerializer(serializers.ModelSerializer):
         payment_method = attrs["payment_method"]
         user = self.context['request'].user
         is_late_to_book_with_stripe = timezone.now() + timedelta(hours=1) > slot_start
-        if payment_method != "Stripe" and not user.is_staff:
-            raise serializers.ValidationError(
-                {"payment_method": "Patients are not allowed to specify this field"}
-            )
+
         if payment_method == "Stripe" and is_late_to_book_with_stripe:
             if user.is_staff:
                 raise serializers.ValidationError(
@@ -259,3 +238,18 @@ class GlobalClinicSettingsSerializer(serializers.ModelSerializer):
                     "settings": "Only 1 instance possible, try update instead create"
                 }
             )
+
+
+class CancelAppointmentSerializer(serializers.Serializer):
+    patient = serializers.PrimaryKeyRelatedField(
+        queryset=get_user_model().objects.all(),
+        required=False,
+        default=serializers.CurrentUserDefault()
+    )
+    manual_cancel_fee = serializers.BooleanField(default=False)
+
+    def validate(self, attrs):
+        if not self.context["request"].user.is_staff:
+            attrs["manual_cancel_fee"] = False
+        return attrs
+

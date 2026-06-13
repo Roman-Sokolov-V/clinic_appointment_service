@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime, timedelta
 
+from django.core.serializers import get_serializer
 from django.db import transaction
 from django.utils import timezone
 from django.utils.module_loading import import_string
@@ -20,7 +21,7 @@ from clinic.models import Specialization, Doctor, DoctorSlot, Appointment
 from clinic.permissions import IsOwnerOrAdmin
 from clinic.serializers import (
     SpecializationSerializer, DoctorSerializer, BulkCreateSlotsSerializer,
-    SlotSerializer, AppointmentSerializer, AppointmentFilterSerializer
+    SlotSerializer, AppointmentSerializer, AppointmentFilterSerializer, CancelAppointmentSerializer
 )
 from clinic.services.appointment_service import AppointmentService
 from clinic.utils import get_expires_at
@@ -93,24 +94,40 @@ class ListBulkCreateSlotsApiView(ListCreateAPIView):
         )
 
     def get_queryset(self):
+        """
+        Retrieve and filter the list of slots for a specific doctor.
+
+        By default, if no 'from' parameter is provided, only upcoming slots
+        (starting from the current server time) are returned to optimize
+        performance and prevent loading historical data unnecessarily.
+
+        Query Parameters:
+            from (str, optional): Start datetime ISO string. If empty or missing,
+                defaults to the current time (`timezone.now()`).
+            to (str, optional): End datetime ISO string to limit the upper bound.
+            available_only (str, optional): If set to 'true' (case-insensitive),
+                excludes slots that already have a 'BOOKED' appointment.
+
+        Returns:
+            QuerySet: A filtered and chronologically ordered QuerySet of DoctorSlot objects.
+        """
         doctor_id = self.kwargs["pk"]
-        queryset = DoctorSlot.objects.filter(doctor_id=doctor_id)
+        queryset = DoctorSlot.objects.filter(doctor_id=doctor_id).order_by("start")
         if self.request.method == "GET":
             from_ = self.request.query_params.get("from")
             to_ = self.request.query_params.get("to")
             available_only = self.request.query_params.get("available_only")
+            print("available_only", available_only)
 
-            if from_ is not None:
+            if not from_:
+                queryset = queryset.filter(start__gte=timezone.now())
+            else:
                 queryset = queryset.filter(start__gte=from_.strip())
             if to_ is not None:
                 queryset = queryset.filter(end__lte=to_.strip())
             if available_only is not None:
                 if available_only.strip().lower() == "true":
-                    queryset = queryset.exclude(
-                        id__in=Appointment.objects.filter(
-                            status="BOOKED"
-                        ).values_list("slot", flat=True)
-                    )
+                    queryset = queryset.exclude(appointments__status="BOOKED")
 
         return queryset
 
@@ -148,7 +165,7 @@ class AppointmentViewSet(
     queryset = Appointment.objects.select_related("slot").all()
 
     def get_permissions(self):
-        if self.action in ("list",):
+        if self.action in ("list", "create"):
             return [IsAuthenticated()]
         if self.action in ('retrieve', 'cancel'):
             return [IsOwnerOrAdmin()]
@@ -185,64 +202,11 @@ class AppointmentViewSet(
                 queryset = queryset.filter(patient=self.request.user)
         return queryset
 
+    def get_serializer_class(self):
+        if self.action == "cancel":
+            return CancelAppointmentSerializer
+        return  AppointmentSerializer
 
-    # def perform_create(self, serializer):
-    #     """
-    #     Perform the creation of an appointment and initialize its Stripe payment flow.
-    #
-    #     Business Rules & Validation:
-    #     1. Staff members (admins) are allowed to book appointments for any user,
-    #        but they MUST explicitly provide a 'patient' ID.
-    #     2. Regular patients cannot book appointments for anyone else. If they provide
-    #        a 'patient' field that doesn't match their own user ID, a ValidationError is raised.
-    #     3. If a regular patient leaves the 'patient' field empty, it automatically defaults
-    #        to their own user profile.
-    #
-    #     Architecture & Data Flow:
-    #     The entire process is wrapped in a database `transaction.atomic()` block.
-    #     First, the appointment is saved. Then, the method dynamically extracts the
-    #     `frontend_success_url` and `frontend_cancel_url` that were temporarily captured
-    #     by the serializer during its validation/creation phase.
-    #
-    #     Finally, it initializes the designated PaymentService (e.g., StripePayment),
-    #     injecting the newly created appointment and the frontend redirection targets
-    #     to securely generate the payment session.
-    #
-    #     :param serializer: AppointmentSerializer instance with validated data.
-    #     :raises ValidationError: If permission checks fail or admin request lacks a patient.
-    #     :return: Payment model instance representing the pending Stripe transaction.
-    #     """
-    #
-    #     patient = serializer.validated_data.get("patient")
-    #     if self.request.user.is_staff:
-    #         if not patient:
-    #             raise ValidationError({"patient": "Required for admin"})
-    #     elif patient and patient != self.request.user:
-    #             raise ValidationError(
-    #                 {
-    #                     "patient": "You are not allowed to create appointment not for yourself."
-    #                                " To create appointment for yourself, you do not have to fill field 'patient'"
-    #                 }
-    #             )
-    #     else:
-    #         patient = self.request.user
-    #
-    #     with transaction.atomic():
-    #         # 1. Зберігаємо візит
-    #         appointment = serializer.save(patient=patient)
-    #         # 2. Створюємо платіж
-    #
-    #         payment_data = getattr(serializer, "payment_data")
-    #         payment_method = getattr(serializer, "payment_method", "STRIPE")
-    #         expires_at = get_expires_at(appointment.slot.start)
-    #         payment_data["expires_at"] = expires_at
-    #         PaymentService = get_payment_service(payment_method)
-    #         payment = PaymentService(
-    #             appointment=appointment,
-    #             payment_data=payment_data,
-    #             payment_method=payment_method
-    #         ).create_payment()
-    #         return payment
 
     def create(self, request, *args, **kwargs):
         """
@@ -292,18 +256,24 @@ class AppointmentViewSet(
         headers = self.get_success_headers(response_data)
         return Response(response_data, status=status.HTTP_201_CREATED, headers=headers)
 
-
     @action(methods=["POST"], detail=True)
     def cancel(self, request, pk=None):
         appointment = self.get_object()
         self.check_object_permissions(request, appointment)
-        appointment = AppointmentService.cancel_appointment(appointment=appointment)
-
+        serializer = get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        manual_cancel_fee = serializer.validated_data.get("manual_cancel_fee", False)
+        appointment = AppointmentService.cancel_appointment(
+            appointment=appointment,
+            manual_cancel_fee=manual_cancel_fee
+        )
 
         return Response(
             {"status": appointment.status},
             status=status.HTTP_200_OK
         )
+
+
 
     @action(methods=["POST"], detail=True)
     def complete(self, request, pk=None):

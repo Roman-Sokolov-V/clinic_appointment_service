@@ -21,9 +21,9 @@ PAYMENT_METHOD = (
     ('STRIPE', 'Stripe'),
 )
 class PaymentStatus(models.TextChoices):
-    PENDING = 'PENDING', 'Очікує оплати'
-    PAID = 'PAID', 'Оплачено'
-    FAILED = 'FAILED', 'Помилка платежу'
+    PENDING = 'PENDING', 'Pending payment'
+    PAID = 'PAID', 'Paid'
+    FAILED = 'FAILED', 'Payment failed'
 
 class Payment(models.Model):
     status = models.CharField(max_length=100, choices=PAYMENT_STATUS, default='PENDING')

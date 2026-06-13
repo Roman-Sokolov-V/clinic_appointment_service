@@ -158,7 +158,7 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
-    'PAGE_SIZE': 10
+    'PAGE_SIZE': 100
 }
 
 
@@ -202,8 +202,6 @@ SOCIALACCOUNT_EMAIL_VERIFICATION = "none"
 # Куди перенаправляти користувача після успішного входу
 LOGIN_REDIRECT_URL = '/users/me/'
 
-
-#PAYMENT_SERVICE_CLASS = "payment.payment_services.stripe_service.StripePayment"
 STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY')
 STRIPE_ENDPOINT_SECRET = os.environ.get('STRIPE_ENDPOINT_SECRET')
 BACKEND_SUCCESS_URL= "http://localhost:8000/payments/success/"
