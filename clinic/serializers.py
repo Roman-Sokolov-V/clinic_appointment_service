@@ -241,14 +241,20 @@ class GlobalClinicSettingsSerializer(serializers.ModelSerializer):
 
 
 class CancelAppointmentSerializer(serializers.Serializer):
-    patient = serializers.PrimaryKeyRelatedField(
-        queryset=get_user_model().objects.all(),
-        required=False,
-        default=serializers.CurrentUserDefault()
-    )
+    # user = serializers.PrimaryKeyRelatedField(
+    #     queryset=get_user_model().objects.all(),
+    #     required=False,
+    #     default=serializers.CurrentUserDefault()
+    # )
     manual_cancel_fee = serializers.BooleanField(default=False)
 
     def validate(self, attrs):
+        """
+        If the request.user is not is_staff he does not have the right to cancel the fee, manual_cancel_fee
+        in this case, it is automatically accepted as False, even if it is set to True.
+        If user is is_staff, it is possible to set manual_cancel_fee as True, to undo
+        automatic accrual of a fine
+        """
         if not self.context["request"].user.is_staff:
             attrs["manual_cancel_fee"] = False
         return attrs

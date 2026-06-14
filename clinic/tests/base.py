@@ -167,6 +167,36 @@ class BaseClinicTestCase(TestCase):
             price=doctor.price_per_visit
         )
 
+    def get_slot(self) -> DoctorSlot:
+        slots = self.populate_free_slots()
+        slot = slots[0]
+        start = timezone.now() + timedelta(hours=10)
+        end = start + timedelta(hours=1)
+        slot.start = start
+        slot.end = end
+        slot.save(update_fields=["start", "end"])
+        return slot
+
+    def get_appointment(self, slot, patient: User | None = None) -> Appointment:
+        appointment = Appointment.objects.create(
+            slot=slot,
+            patient=patient if patient else self.first_patient,
+            price=slot.doctor.price_per_visit
+        )
+        appointment.save()
+        return appointment
+
+    def get_paid_payment(self, appointment: Appointment, method: str = "STRIPE") -> Payment:
+        payment = Payment.objects.create(
+            status="PAID",
+            method=method,
+            appointment=appointment,
+            money_to_pay=appointment.price
+        )
+        payment.save()
+        return payment
+
+captured_service_class = None
 
 @contextmanager
 def mock_payment_service(**kwargs):
@@ -189,23 +219,15 @@ def mock_payment_service(**kwargs):
     Yields:
         unittest.mock.MagicMock: The mocked factory function, allowing assertions
             on call counts or captured arguments.
-
-    Example:
-        >>> expected_url = "https://checkout.stripe.com/c/pay/cs_test_12345"
-        >>> metadata = {"session_id": "cs_test_12345", "session_url": expected_url}
-        >>>
-        >>> with mock_payment_service(provider_metadata=metadata) as mock_service:
-        >>>     response = self.client.post(url, data={"slot": 1}, format="json")
-        >>>
-        >>>     self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        >>>     self.assertEqual(mock_service.call_count, 1)
     """
-    # Шлях до фабрики платежів
     target = 'clinic.services.appointment_service.get_payment_service'
 
     with patch(target) as mock_get_payment_service:
+        created_service_classes = []
+
         def mock_get_service_behavior(payment_method):
             mock_service_class = MagicMock()
+            created_service_classes.append(mock_service_class)
 
             def fake_create_payment():
                 constructor_kwargs = mock_service_class.call_args_list[-1].kwargs
@@ -217,13 +239,15 @@ def mock_payment_service(**kwargs):
                     money_to_pay=10,
                     type="CONSULTATION",
                     method=payment_method,
-                    provider_metadata=kwargs["provider_metadata"]
+                    provider_metadata=kwargs.get("provider_metadata", {})
                 )
 
-            mock_service_class.return_value.create_payment = fake_create_payment
+            mock_service_class.return_value.create_payment = MagicMock(side_effect=fake_create_payment)
+            mock_service_class.initiate_refund = MagicMock(return_value=None)
+
             return mock_service_class
 
         mock_get_payment_service.side_effect = mock_get_service_behavior
+        mock_get_payment_service.created_service_classes = created_service_classes
 
-        # Повертаємо сам мок у контекст, раптом знадобиться перевірити call_count
         yield mock_get_payment_service

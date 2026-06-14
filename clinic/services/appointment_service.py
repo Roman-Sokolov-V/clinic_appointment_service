@@ -3,7 +3,7 @@ from typing import Any
 
 from django.utils import timezone
 from django.db import transaction
-from rest_framework.exceptions import ValidationError
+from rest_framework.serializers import ValidationError
 
 from clinic.models import Appointment, DoctorSlot, GlobalClinicSettings
 from clinic.utils import get_expires_at
@@ -14,7 +14,8 @@ from payment.payment_services import get_payment_service
 class AppointmentService:
 
     @staticmethod
-    def cancel_appointment(*, appointment: Appointment, user):
+    def cancel_appointment(*, appointment: Appointment, manual_cancel_fee: bool = False):
+
         with transaction.atomic():
             appointment = Appointment.objects.select_for_update().get(id=appointment.id)
             if appointment.status != "BOOKED":
@@ -24,19 +25,19 @@ class AppointmentService:
 
             appointment.status = "CANCELED"
             appointment.save(update_fields=["status"])
-
         paid_payment = AppointmentService._payment_with_status_paid(appointment)
-        initializer_is_patient = not user.is_staff
+        #initializer_is_patient = not user.is_staff
         is_late_cancel = appointment.slot.start <= timezone.now() + timedelta(minutes=appointment.window_fee)
 
         if paid_payment:
             if paid_payment.method.upper() != "CASH":
                 payment_service = get_payment_service(paid_payment.method)
-                full_refund_cases = (not initializer_is_patient, not is_late_cancel)
+                full_refund_cases = (manual_cancel_fee, not is_late_cancel)
                 if any(full_refund_cases):
                     payment_service.initiate_refund(paid_payment)
                 else:
-                    payment_service.initiate_refund(paid_payment, appointment.fee)
+                    print("with fee")
+                    payment_service.initiate_refund(paid_payment, appointment.percent_fee)
         return appointment
 
 

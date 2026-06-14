@@ -260,7 +260,7 @@ class AppointmentViewSet(
     def cancel(self, request, pk=None):
         appointment = self.get_object()
         self.check_object_permissions(request, appointment)
-        serializer = get_serializer(data=request.data)
+        serializer = self.get_serializer(data=request.data) # що тут не так?
         serializer.is_valid(raise_exception=True)
         manual_cancel_fee = serializer.validated_data.get("manual_cancel_fee", False)
         appointment = AppointmentService.cancel_appointment(
