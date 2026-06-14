@@ -27,7 +27,7 @@ class PaymentStatus(models.TextChoices):
 
 class Payment(models.Model):
     status = models.CharField(max_length=100, choices=PAYMENT_STATUS, default='PENDING')
-    type = models.CharField(max_length=100, choices=PAYMENT_TYPE)
+    type = models.CharField(max_length=100, choices=PAYMENT_TYPE, default='CONSULTATION')
     method = models.CharField(max_length=100, choices=PAYMENT_METHOD, default='STRIPE')
     appointment = models.ForeignKey(Appointment, on_delete=models.CASCADE, related_name='payments')
     money_to_pay = models.DecimalField(max_digits=10, decimal_places=2)
