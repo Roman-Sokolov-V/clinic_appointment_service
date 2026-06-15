@@ -54,6 +54,8 @@ INSTALLED_APPS = [
     'dj_rest_auth',
     'dj_rest_auth.registration',  # Для реєстрації нових юзерів
 
+    'django_celery_beat',
+
     # Allauth
     'allauth',
     'allauth.account',
@@ -248,3 +250,9 @@ LOGGING = {
     },
 }
 
+#CELERY#######
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60
+CELERY_BROKER_URL = 'pyamqp://guest@localhost//'
+CELERY_RESULT_BACKEND = 'rpc://'
