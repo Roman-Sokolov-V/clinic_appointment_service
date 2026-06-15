@@ -19,9 +19,9 @@ services:
     build: .
     env_file:
       - .env
-    environment:
-      - IN_DOCKER=True # використовується в settings для підключення постгресс бд якщо запущено в контейнері
-    entrypoint: ["./entrypoint.sh"]
+#    environment:
+#      - IN_DOCKER=True # використовується в settings для підключення постгресс бд якщо запущено в контейнері
+    entrypoint: ["./entrypoint.sh"]  # тут застосування міграцій і запуск сервера
     ports:
       - "8000:8000"
     volumes:
@@ -31,5 +31,58 @@ services:
       db:
         condition: service_healthy
 
+# додаю нові сервіси:
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: clinic_rabbitmq
+    restart: always
+    env_file:
+      - .env
+    ports:
+      #- "5672:5672"   # Для Celery
+      - "15672:15672" # Для веб-панелі
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+  celery:
+    build: .
+    container_name: clinic_celery
+    restart: on-failure
+    env_file:
+      - .env
+    command: celery -A config worker --loglevel=INFO
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+
+  celery-beat:
+    build: .
+    container_name: clinic_celery_beat
+    restart: on-failure
+    env_file:
+      - .env
+    command: celery -A config beat -l INFO --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+
+#  flower:
+#    build: .
+#    container_name: clinic_flower
+#    restart: on-failure
+#    env_file:
+#      - .env
+#    ports:
+#      - "5555:5555"
+#    command: celery -A config flower --address=0.0.0.0
+#    depends_on:
+#      celery:
+#        condition: service_started
+
 volumes:
   clinic_db:
+  rabbitmq_data:

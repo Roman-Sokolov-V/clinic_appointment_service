@@ -2,7 +2,6 @@ from celery import shared_task
 from celery.utils.log import get_task_logger
 
 from clinic.services.appointment_service import AppointmentService
-import logging
 
 logger = get_task_logger(__name__)
 

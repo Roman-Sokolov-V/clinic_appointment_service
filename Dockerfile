@@ -16,6 +16,10 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 # Копіюємо код
 COPY . /app
+
+# ця змінна для перемикання режиму вибора бд
+ENV IN_DOCKER=True
+
 # Гарантуємо, що скрипт запуститься всередині Alpine
 RUN chmod +x /app/entrypoint.sh
 
@@ -27,6 +31,3 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 ENV PATH="/app/.venv/bin:$PATH"
 
 ENTRYPOINT []
-
-# ЗАПУСКАЄМО ВІД ІМЕНІ ROOT (Прибираємо USER nonroot, щоб не було Permission Denied)
-# CMD ["sh", "-c", "uv run python manage.py migrate && uv run python manage.py runserver 0.0.0.0:8000"]
