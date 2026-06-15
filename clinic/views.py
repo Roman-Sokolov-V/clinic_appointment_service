@@ -271,9 +271,7 @@ class AppointmentViewSet(
     )
     def no_show(self, request, pk=None):
         appointment = self.get_object()
-        self.check_object_permissions(request, appointment)
-        appointment.status = "NO_SHOW"
-        appointment.save(update_fields=["status"])
+        appointment = AppointmentService.manual_mark_no_show_appointment(appointment=appointment)
         return Response(
             {"status": appointment.status},
             status=status.HTTP_200_OK

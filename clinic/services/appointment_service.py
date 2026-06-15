@@ -102,3 +102,30 @@ class AppointmentService:
         ).create_payment()
 
         return appointment, payment
+
+    @staticmethod
+    @transaction.atomic
+    def manual_mark_no_show_appointment(*, appointment: Appointment):
+        appointment = Appointment.objects.select_for_update().get(id=appointment.id)
+        if appointment.status != "BOOKED":
+            raise ValidationError({"appointment": "Only booked appointments can be marked NO_SHOW."})
+        appointment.status = "NO_SHOW"
+        appointment.save(update_fields=["status"])
+        return appointment
+
+    @staticmethod
+    @transaction.atomic
+    def automatically_mark_no_show_appointments():
+        now = timezone.now()
+        expired_ids = list(
+            Appointment.objects
+            .select_related("slot")
+            .filter(slot__end__lte=now, status="BOOKED")
+            .select_for_update()
+            .values_list("id", flat=True)
+        )
+        if not expired_ids:
+            return
+
+        Appointment.objects.filter(id__in=expired_ids).update(status="NO_SHOW")
+        return expired_ids
