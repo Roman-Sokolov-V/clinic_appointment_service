@@ -1,10 +1,7 @@
 import logging
-from datetime import datetime, timedelta
 
-from django.core.serializers import get_serializer
-from django.db import transaction
 from django.utils import timezone
-from django.utils.module_loading import import_string
+
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -12,11 +9,10 @@ from rest_framework.generics import ListCreateAPIView, RetrieveDestroyAPIView, g
 from rest_framework.mixins import (
     CreateModelMixin, RetrieveModelMixin, DestroyModelMixin, ListModelMixin
 )
-from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
-import payment
 from clinic.models import Specialization, Doctor, DoctorSlot, Appointment
 from clinic.permissions import IsOwnerOrAdmin
 from clinic.serializers import (
@@ -24,10 +20,7 @@ from clinic.serializers import (
     SlotSerializer, AppointmentSerializer, AppointmentFilterSerializer, CancelAppointmentSerializer
 )
 from clinic.services.appointment_service import AppointmentService
-from clinic.utils import get_expires_at
 
-from payment.models import Payment
-from payment.payment_services import get_payment_service
 
 logger = logging.getLogger("clinic_api")
 
@@ -145,7 +138,6 @@ class DetailSlotApiView(RetrieveDestroyAPIView):
     def perform_destroy(self, instance):
         appointment = Appointment.objects.filter(
             slot=instance.id,
-            # status="BOOKED" # в завданні якщо взагалі appointment існує не зважаючи на статус
         ).first()
         if appointment:
             raise ValidationError(
@@ -215,21 +207,8 @@ class AppointmentViewSet(
         Extends the standard response by appending a 'checkout_url'. The frontend
         should use this URL to redirect the patient to the Stripe checkout page.
         """
-        # serializer = self.get_serializer(data=request.data)
-        # serializer.is_valid(raise_exception=True)
-        # payment = self.perform_create(serializer)
-        # # todo send_telegram_notification_task.delay(
-        # #     appointment_id=serializer.instance.id,
-        # #     checkout_url=self.payment.session_url
-        # # )
-        # headers = self.get_success_headers(serializer.data)
-        # response_data = serializer.data
-        # response_data["checkout_url"] = payment.provider_metadata.get("session_url") if payment.provider_metadata else None
-        # return Response(response_data, status=status.HTTP_201_CREATED, headers=headers)
-        # 1. Базова валідація вхідного JSON
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        # Дістаємо дані для Stripe, які серіалізатор витягнув під час validation
         payment_method = getattr(serializer, "payment_method", "STRIPE")
         payment_data = getattr(serializer, "payment_data", {})
 
@@ -292,9 +271,7 @@ class AppointmentViewSet(
     )
     def no_show(self, request, pk=None):
         appointment = self.get_object()
-        self.check_object_permissions(request, appointment)
-        appointment.status = "NO_SHOW"
-        appointment.save(update_fields=["status"])
+        appointment = AppointmentService.manual_mark_no_show_appointment(appointment=appointment)
         return Response(
             {"status": appointment.status},
             status=status.HTTP_200_OK

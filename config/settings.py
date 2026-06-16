@@ -54,6 +54,8 @@ INSTALLED_APPS = [
     'dj_rest_auth',
     'dj_rest_auth.registration',  # Для реєстрації нових юзерів
 
+    'django_celery_beat',
+
     # Allauth
     'allauth',
     'allauth.account',
@@ -248,3 +250,13 @@ LOGGING = {
     },
 }
 
+#broker
+RABBITMQ_DEFAULT_USER=os.getenv('RABBITMQ_DEFAULT_USER', 'guest')
+RABBITMQ_DEFAULT_PASS=os.getenv('RABBITMQ_DEFAULT_PASS', 'guest')
+
+#CELERY#######
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60
+CELERY_BROKER_URL = "amqp://{}:{}@rabbitmq:5672//".format(RABBITMQ_DEFAULT_USER, RABBITMQ_DEFAULT_PASS)
+CELERY_RESULT_BACKEND = 'rpc://'
