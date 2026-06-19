@@ -1,0 +1,39 @@
+import os
+import asyncio
+import logging
+import dotenv
+
+from aiogram import Bot, Dispatcher
+
+from telegram_bot.settings import TELEGRAM_TOKEN
+from telegram_bot.cash_redis.pool import init_redis_pool, close_redis_pool
+from telegram_bot.db.pool import init_db_pool, close_db_pool
+from telegram_bot.handlers.user import router as user_router
+from telegram_bot.handlers.doctors import router as doctor_router
+from telegram_bot.callbacks import router as callback_router
+
+
+dotenv.load_dotenv()
+
+bot = Bot(token=TELEGRAM_TOKEN)
+
+dp = Dispatcher()
+
+
+
+
+
+async def main():
+    pool = await init_db_pool()  # 👈 створили pool
+    redis_client = await init_redis_pool()
+    dp.include_routers(user_router, doctor_router, callback_router)
+    try:
+        await dp.start_polling(bot, pool=pool, redis_client=redis_client)
+    finally:
+        await close_db_pool()  # 👈 закрили pool
+        await close_redis_pool()
+
+
+if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)
+    asyncio.run(main())

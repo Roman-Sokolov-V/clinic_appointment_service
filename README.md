@@ -45,8 +45,23 @@
 
 
 
+запуск celery workers 
+```bash
+celery -A config worker --loglevel=INFO
+```
+запуск celery-beat
+```bash
+celery -A config beat -l INFO --scheduler django_celery_beat.schedulers:DatabaseScheduler
+```
+періодичні завдання налаштовуються в адмін панелі
 
+docker compose -f dev-docker-compose.yml up --build
 
+flower
+http://127.0.0.1:5555/
+
+запуск телеграм бота
+uv run -m telegram_bot.run
 
 ## 🔄 Core Business Workflows & Data Flow
 
