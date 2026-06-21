@@ -7,10 +7,10 @@ from aiogram.types import Message
 from pprint import pprint
 
 import telegram_bot.keyboards as kb
-from telegram_bot.cash_redis.cash_crud import get_access_token
+from telegram_bot.cash_redis.cash_crud import get_access_token, delete_access_token
 from telegram_bot.api.clinic_v1 import ClinicV1
 from telegram_bot.custom_exeptions import NotValidToken
-from telegram_bot.db.crud import get_refresh_token
+from telegram_bot.db.crud import get_refresh_token, remove_refresh_token
 from telegram_bot.settings import basic_url
 
 router = Router()
@@ -27,6 +27,15 @@ async def cmd_me(message: Message):
 
     )
 
+@router.message(Command("remove_tokens"))
+async def cmd_remove_token(message: Message, pool, redis_client):
+    try:
+        await delete_access_token(redis_client=redis_client, user_id=message.from_user.id)
+        await remove_refresh_token(pool=pool, user_id=message.from_user.id)
+        await message.answer("tokens removed")
+    except Exception as e:
+        await message.answer(str(e))
+
 @router.message(Command("help")) # обробник команди яка передається як аргумент декоратора
 async def cmd_help(message: Message):
     await message.answer("this is a help command")
@@ -37,31 +46,6 @@ async def cmd_hello(message: Message):
 
 
 
-@router.message(Command("start"))
-async def cmd_start(message: Message, pool, redis_client):
-    user_id = message.from_user.id
-
-    #  Спроба знайти токен з кешу редіс
-    access_token = await get_access_token(redis_client=redis_client, user_id=user_id)
-
-    if not access_token:
-        logging.info("Access Token Not Found")
-        # Шукаємо рефреш токен в бд
-        refresh = await get_refresh_token(pool=pool, user_id=user_id)
-        # Якщо нема і його значить юзер не зареєстрований
-        if not refresh:
-            logging.info("Refresh Token Not Found")
-            await message.answer(
-                text="Login required",
-                reply_markup=kb.register_required_menu
-            )
-            return
-    # я аксес або рефреш токен - показиваємо головне меню
-    await message.answer(
-        f"Раді бачити вас знову, {message.from_user.first_name}! 👋\n"
-        f"Оберіть потрібну послугу клініки:",
-        reply_markup=kb.main_menu_keyboard
-    )
 
 
 
