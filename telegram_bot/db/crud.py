@@ -36,3 +36,9 @@ async def is_user_exists(pool, user_id: int) -> bool:
             """,
             user_id
         )
+
+async def remove_refresh_token(pool, user_id: int) -> None:
+    async with pool.acquire() as conn:
+        await conn.execute(
+            """DELETE FROM tokens WHERE user_id = $1""", user_id
+        )

@@ -10,7 +10,6 @@ if IN_DOCKER:
 else:
     basic_url = "http://127.0.0.1:8000/"
 
-REG_URL= basic_url + "users/"
 TOKEN_URL = basic_url + "users/token/"
 
 POSTGRES_USER=os.getenv("POSTGRES_USER", "postgres")
