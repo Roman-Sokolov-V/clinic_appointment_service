@@ -9,3 +9,12 @@ class AnyTokensFound(Exception):
 class TokenNotExists(Exception):
     def __init__(self, message="Access token does not exist in cash"):
         super().__init__(message)
+
+class RegistrationFailed(Exception):
+    pass
+
+class NoTokenFound(Exception):
+    pass
+
+class BadRequest(Exception):
+    pass
