@@ -27,7 +27,7 @@ logger = logging.getLogger("clinic_api")
 class SpecializationViewSet(viewsets.ModelViewSet):
     model = Specialization
     serializer_class = SpecializationSerializer
-    queryset = Specialization.objects.all()
+    queryset = Specialization.objects.all().order_by("name")
 
     def get_permissions(self):
         if self.action in ('list', 'retrieve'):
