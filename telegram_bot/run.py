@@ -5,6 +5,7 @@ import dotenv
 
 from aiogram import Bot, Dispatcher
 
+from telegram_bot.middlewares import ClinicApiMiddleware
 from telegram_bot.settings import TELEGRAM_TOKEN
 from telegram_bot.cash_redis.pool import init_redis_pool, close_redis_pool
 from telegram_bot.db.pool import init_db_pool, close_db_pool
@@ -19,12 +20,14 @@ bot = Bot(token=TELEGRAM_TOKEN)
 dp = Dispatcher()
 
 
-
-
-
 async def main():
-    pool = await init_db_pool()  # 👈 створили pool
+    pool = await init_db_pool()
     redis_client = await init_redis_pool()
+
+    # Реєструємо мідлварь на колбеки та повідомлення
+    dp.callback_query.middleware(ClinicApiMiddleware())
+    dp.message.middleware(ClinicApiMiddleware())
+
     dp.include_routers(
         start_router,
         user_router,

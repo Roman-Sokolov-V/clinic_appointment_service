@@ -1,7 +1,5 @@
 import logging
 
-import httpx
-
 from aiogram import Router, F
 from aiogram.types import CallbackQuery, Message, message
 from aiogram.fsm.state import StatesGroup, State
@@ -12,7 +10,18 @@ from telegram_bot.api import get_api
 from telegram_bot.custom_exeptions import RegistrationFailed, NoTokenFound, BadRequest
 from telegram_bot.db.crud import save_refresh_token
 from telegram_bot.cash_redis.cash_crud import save_access_token, get_access_token
-import telegram_bot.keyboards as kb
+from telegram_bot.keyboards import (
+    SlotClick,
+    SpecClick,
+    PaginationClickSpecializations,
+    inline_specializations,
+    main_menu_keyboard,
+    inline_doctors,
+    inline_slots,
+    DocClick,
+    inline_payment_methods,
+    PaymentMethodClick
+)
 
 router = Router()
 api_class = get_api()
@@ -25,6 +34,10 @@ class Reg(StatesGroup):
 class Log(StatesGroup):
     email = State()
     password = State()
+
+class Book(StatesGroup):
+    slot_id = State()
+    payment_method = State()
 
 @router.callback_query(F.data == "register_in_clinic")
 async def register_in_clinic(callback: CallbackQuery, state: FSMContext):
@@ -60,7 +73,7 @@ async def reg_third(message: Message, state: FSMContext, pool, redis_client):
         await message.answer(
             f"Реєстрація успішна! Ваш email: {user_data.get('email')}, password: {payload.get('password')} 👋\n"
             f"Оберіть потрібну послугу клініки:",
-            reply_markup=kb.main_menu_keyboard
+            reply_markup=main_menu_keyboard
         )
     except RegistrationFailed as e:
         await message.answer(f"Під час реєстрації сталася помилка {e}")
@@ -112,65 +125,45 @@ async def log_third(message: Message, state: FSMContext, pool, redis_client):
     await message.answer(
         f"Раді бачити вас знову, {message.from_user.first_name}! 👋\n"
         f"Оберіть потрібну послугу клініки:",
-        reply_markup=kb.main_menu_keyboard
+        reply_markup=main_menu_keyboard
     )
 
 
-
-#
-# @router.callback_query(F.data == "specializations")
-# async def show_specializations(callback: CallbackQuery, redis_client):
-#     logging.info("Show specializations")
-#     user_id = callback.from_user.id
-#     api_service = api_class(user_id)
-#     access_token = await get_access_token(redis_client=redis_client, user_id=user_id)
-#     logging.info( access_token)
-#     results, next = await api_service.get_specializations(access_token=access_token)
-#
-#     await callback.message.answer(
-#         reply_markup=kb.inline_specializations(results, next)
-#     )
-#
-
-
-
 # 1. Хендлер для кліку по спеціалізації
-@router.callback_query(kb.SpecClick.filter())
+@router.callback_query(SpecClick.filter())
 async def handle_specialization_click(
         callback: CallbackQuery,
-        callback_data: kb.SpecClick,
-        redis_client
+        callback_data: SpecClick,
+        api_service
 ):
     """
     Робить запит до АПІ, отримує пагіновані дані докторів за обраною спеціалізацією
     :param callback:
     :param callback_data:
-    :param redis_client:
     :return:
     """
     await callback.answer()
 
     # Дістаємо ID спеціалізації прямо з об'єкта callback_data 👇
     spec_id = callback_data.id
-    user_id = callback.from_user.id
 
     await callback.message.answer(f"Ви обрали спеціалізацію з ID: {spec_id}. Шукаю лікарів...")
     await callback.message.answer("Ще трошечки")
-    access_token = await get_access_token(redis_client=redis_client, user_id=user_id)
-    api_service = api_class(user_id)
-    doctors, next = await api_service.get_doctors(access_token=access_token, specialization_id=spec_id)
+
+    doctors, next = await api_service.get_doctors(specialization_id=spec_id)
     await callback.message.answer(
         text=f"Список докторів, клікнувши на обраного доктора отримаєте список вільних слотів",
-        reply_markup=kb.inline_doctors(doctors, next)
+        reply_markup=inline_doctors(doctors, next)
     )
 
 
 
-@router.callback_query(kb.PaginationClickSpecializations.filter())
+@router.callback_query(PaginationClickSpecializations.filter())
 async def show_specializations(
         callback: CallbackQuery,
         redis_client,
-        callback_data: kb.PaginationClickSpecializations,
+        api_service,
+        callback_data: PaginationClickSpecializations,
 ):
     """
     робить запит до АПІ отримує дані спеціальностей
@@ -178,7 +171,7 @@ async def show_specializations(
     """
     logging.info("Show specializations")
     user_id = callback.from_user.id
-    api_service = api_class(user_id)
+
     access_token = await get_access_token(redis_client=redis_client, user_id=user_id)
     logging.info( access_token)
 
@@ -190,43 +183,90 @@ async def show_specializations(
     if limit and offset:
         next_url = f"{basic_url}/clinic/specializations/?limit={limit}&offset={offset}"
 
-    results, next = await api_service.get_specializations(access_token=access_token, url=next_url)
+    results, next = await api_service.get_specializations(url=next_url)
     if next:
         await callback.message.answer(text=f"{next}")
 
     await callback.message.answer(
         text="specializations:",
-        reply_markup=kb.inline_specializations(results, next)
+        reply_markup=inline_specializations(results, next)
     )
 
 
 
-@router.callback_query(kb.DocClick.filter())
+@router.callback_query(DocClick.filter())
 async def show_doctor_detail(
         callback: CallbackQuery,
-        redis_client,
-        callback_data: kb.PaginationClickSpecializations,
+        api_service,
+        callback_data: DocClick,
 ):
     """
     робить запит до АПІ отримує докладні дані доктора
 
     """
-    user_id = callback.from_user.id
-    api_service = api_class(user_id)
-    access_token = await get_access_token(redis_client=redis_client, user_id=user_id)
-    logging.info(access_token)
 
     await callback.answer()
 
     doctor_id = callback_data.id
 
-    doctor = await api_service.get_doctor_details(access_token=access_token, doctor_id=doctor_id)
-
+    doctor = await api_service.get_doctor_details(doctor_id=doctor_id)
 
     await callback.message.answer(
-        text=f"doctor details: \n"
-             f"doctor {doctor['first_name']} {doctor['last_name']}\n"
-             f"{doctor['description']}\n"
-             f"price per visit: ${doctor['price_per_visit']}\n",
-        #reply_markup=kb.inline_slots(doctor.id, next)
+        text=f"doctor details: \ndoctor {doctor['first_name']} {doctor['last_name']}\n{doctor['description']}\nprice per visit: ${doctor['price_per_visit']}\n",
+        reply_markup= await inline_slots(doctor_id=doctor_id, api_service=api_service, message=callback.message)
     )
+
+@router.callback_query(F.data == "main_menu_keyboard")
+async def to_main_menu(callback: CallbackQuery):
+    await callback.answer()
+    await callback.message.answer(
+        text="🏥 Welcome to the Clinic Main Menu.\nSelect an option below:",
+        reply_markup=main_menu_keyboard
+    )
+    await callback.message.delete()
+
+@router.callback_query(SlotClick.filter())
+async def make_appointment(callback: CallbackQuery, callback_data: SlotClick):
+    logging.info("Start Make appointment------------------------------")
+    await callback.answer()
+    slot_id=callback_data.id
+    await callback.message.edit_text(
+        text="Choose payment method",
+        reply_markup=inline_payment_methods(slot_id),
+        parse_mode="Markdown"
+    )
+
+
+@router.callback_query(PaymentMethodClick.filter())
+async def process_payment_and_order(
+        callback: CallbackQuery,
+        callback_data: PaymentMethodClick,
+        api_service
+):
+    await callback.answer()
+
+    slot_id = callback_data.slot_id
+    payment_method = callback_data.method
+
+    # Відправляємо "пісочний годинник", бо запит до АПІ може зайняти секунду
+    await callback.message.edit_text(text="🔄 Створюємо ваш запис у базі даних клініки...")
+
+    try:
+        # 🔥 Робимо фінальний запит до твого DRF бекенду
+        order_data = await api_service.book_appointment(
+            slot_id=slot_id,
+            payment_method=payment_method
+        )
+        await callback.message.edit_text(
+            text=f"✅ Слот заброньовано! Будь ласка, [оплатіть замовлення за цим посиланням]({order_data['checkout_url']}).\n\n"
+                 f"⏰ Оплату необхідно здійснити протягом 24 годин.\n\n"
+                 f"🛡️ **Правила скасування:**\n"
+                 f"• Не пізніше ніж за {order_data['window_fee']} хвилин до початку — повне повернення коштів.\n"
+                 f"• Пізніше, але до початку зустрічі — повернення {100 - order_data['percent_fee']}% вартості.\n"
+                 f"• Після початку зустрічі кошти не повертаються.",
+            parse_mode="Markdown"
+        )
+
+    except Exception as e:
+        logging.error(f"Failed to create order: {e}")
+        await callback.message.edit_text(text="❌ Щось пішло не так при створенні запису. Спробуйте пізніше.")
