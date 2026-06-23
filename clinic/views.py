@@ -118,8 +118,7 @@ class ListBulkCreateSlotsApiView(ListCreateAPIView):
                 queryset = queryset.filter(start__gte=from_.strip())
             if to_ is not None:
                 queryset = queryset.filter(end__lte=to_.strip())
-            if available_only is not None:
-                if available_only.strip().lower() == "true":
+            if not self.request.user.is_staff or (available_only is not None and available_only.strip().lower() == "true"):
                     queryset = queryset.exclude(appointments__status="BOOKED")
 
         return queryset
@@ -276,5 +275,4 @@ class AppointmentViewSet(
             {"status": appointment.status},
             status=status.HTTP_200_OK
         )
-    # todo  POST: appointments/<id>/no-show/ - (staff) mark as NO_SHOW (normally set by scheduled job after slot end)
 
