@@ -33,6 +33,8 @@ class DoctorSerializer(serializers.ModelSerializer):
 
 
 class SlotSerializer(serializers.ModelSerializer):
+    start = serializers.DateTimeField(format="%d %B, %H:%M")
+    end = serializers.DateTimeField(format="%d %B, %H:%M")
     class Meta:
         model = DoctorSlot
         fields = ('id', 'doctor', 'start', 'end')
