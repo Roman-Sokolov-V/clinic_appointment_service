@@ -1,8 +1,8 @@
 from aiogram.types import CallbackQuery
 from aiogram import Router
 
-from telegram_bot.callback_data_factories import DocClick
-from telegram_bot.keyboards.keyboards import inline_slots
+from telegram_bot.doctors.callback_data_factores import DocClick
+from telegram_bot.doctors.keyboards import inline_slots
 
 router = Router()
 

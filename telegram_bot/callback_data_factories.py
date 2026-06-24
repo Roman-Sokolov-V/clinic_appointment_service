@@ -8,10 +8,10 @@ from aiogram.filters.callback_data import CallbackData
 
 
 
-
-class DocClick(CallbackData, prefix="doc"):
-    doctor_id: int
-
+#
+# class DocClick(CallbackData, prefix="doc"):
+#     doctor_id: int
+#
 class SlotClick(CallbackData, prefix="slot"):
     slot_id: int
     doctor_id: int

@@ -7,11 +7,12 @@ from aiogram.fsm.context import FSMContext
 
 # from telegram_bot.settings import basic_url
 from telegram_bot.api import get_api
+from telegram_bot.callback_data_factories import SlotClick
 from telegram_bot.custom_exeptions import RegistrationFailed, NoTokenFound, BadRequest
 from telegram_bot.db.crud import save_refresh_token
 from telegram_bot.cash_redis.cash_crud import save_access_token, get_access_token
 from telegram_bot.keyboards.keyboards import (
-    SlotClick,
+    # SlotClick,
     # SpecClick,
     # PaginationClickSpecializations,
     # inline_specializations,
