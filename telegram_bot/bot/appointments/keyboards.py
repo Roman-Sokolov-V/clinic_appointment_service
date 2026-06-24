@@ -1,8 +1,8 @@
 from aiogram.types import InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from telegram_bot.appointments.callback_data_factories import PaymentMethodClick
-from telegram_bot.common_keyboards import add_main_menu_button
+from telegram_bot.bot.appointments.callback_data_factories import PaymentMethodClick
+from telegram_bot.bot.common_keyboards import add_main_menu_button
 
 
 def inline_payment_methods(slot_id: int, doctor_id: int) -> InlineKeyboardBuilder:

@@ -6,10 +6,10 @@ from aiogram.types import Message
 from pprint import pprint
 
 from telegram_bot.cash_redis.cash_crud import delete_access_token
-from telegram_bot.common_keyboards import main_menu_keyboard
+from telegram_bot.bot.common_keyboards import main_menu_keyboard
 from telegram_bot.db.crud import remove_refresh_token
 
-from telegram_bot.user.keyboards import reg_log_menu
+from telegram_bot.bot.user.keyboards import reg_log_menu
 
 router = Router()
 

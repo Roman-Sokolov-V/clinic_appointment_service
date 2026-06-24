@@ -1,9 +1,9 @@
 from aiogram.types import InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from telegram_bot.common_callback_data_factories import PaginationClickSpecializations
-from telegram_bot.common_keyboards import add_next_button, add_main_menu_button
-from telegram_bot.specializations.callback_data_factories import SpecClick
+from telegram_bot.bot.common_callback_data_factories import PaginationClickSpecializations
+from telegram_bot.bot.common_keyboards import add_next_button, add_main_menu_button
+from telegram_bot.bot.specializations.callback_data_factories import SpecClick
 
 
 def inline_specializations(specializations: list[dict], next: str | None = None):

@@ -3,13 +3,13 @@ import logging
 from aiogram import Router
 from aiogram.types import CallbackQuery
 
-from telegram_bot.common_callback_data_factories import PaginationClickSpecializations
+from telegram_bot.bot.common_callback_data_factories import PaginationClickSpecializations
 from telegram_bot.cash_redis.cash_crud import get_access_token
-from telegram_bot.doctors.keyboards import inline_doctors
+from telegram_bot.bot.doctors.keyboards import inline_doctors
 #from telegram_bot.keyboards.keyboards import inline_doctors
 from telegram_bot.settings import basic_url
-from telegram_bot.specializations.callback_data_factories import SpecClick
-from telegram_bot.specializations.keyboards import inline_specializations
+from telegram_bot.bot.specializations.callback_data_factories import SpecClick
+from telegram_bot.bot.specializations.keyboards import inline_specializations
 
 router = Router()
 

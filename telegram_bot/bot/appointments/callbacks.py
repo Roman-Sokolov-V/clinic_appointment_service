@@ -3,8 +3,8 @@ import logging
 from aiogram import Router
 from aiogram.types import CallbackQuery
 
-from telegram_bot.appointments.callback_data_factories import SlotClick, PaymentMethodClick
-from telegram_bot.appointments.keyboards import inline_payment_methods
+from telegram_bot.bot.appointments.callback_data_factories import SlotClick, PaymentMethodClick
+from telegram_bot.bot.appointments.keyboards import inline_payment_methods
 
 router = Router()
 

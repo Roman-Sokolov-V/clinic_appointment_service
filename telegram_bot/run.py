@@ -1,4 +1,3 @@
-import os
 import asyncio
 import logging
 import dotenv
@@ -9,11 +8,11 @@ from telegram_bot.middlewares import ClinicApiMiddleware
 from telegram_bot.settings import TELEGRAM_TOKEN
 from telegram_bot.cash_redis.pool import init_redis_pool, close_redis_pool
 from telegram_bot.db.pool import init_db_pool, close_db_pool
-from telegram_bot.common_callbacks import router as callback_router
-from telegram_bot.specializations import specializations_callback_router
-from telegram_bot.doctors import doctor_callback_router
-from telegram_bot.appointments import appointment_callback_router
-from telegram_bot.user import user_router
+from telegram_bot.bot.common_callbacks import router as callback_router
+from telegram_bot.bot.specializations import specializations_callback_router
+from telegram_bot.bot.doctors import doctor_callback_router
+from telegram_bot.bot.appointments import appointment_callback_router
+from telegram_bot.bot.user import user_router
 
 
 dotenv.load_dotenv()

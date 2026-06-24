@@ -1,7 +1,7 @@
 from aiogram import Router, F
 from aiogram.types import CallbackQuery
 
-from telegram_bot.common_keyboards import main_menu_keyboard
+from telegram_bot.bot.common_keyboards import main_menu_keyboard
 
 router = Router()
 
