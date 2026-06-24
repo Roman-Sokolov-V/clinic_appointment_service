@@ -26,5 +26,4 @@ def add_prev_menu_button(builder: InlineKeyboardBuilder, callback_data: str) -> 
             text=f"⬅️Back to previous menu",
             callback_data=callback_data
         )
-
 )

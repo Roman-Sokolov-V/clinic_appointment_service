@@ -2,25 +2,6 @@ import re
 from aiogram.filters.callback_data import CallbackData
 
 
-# class SpecClick(CallbackData, prefix="spec"):
-#     spec_id: int
-#     spec_name: str = ""
-
-
-
-#
-# class DocClick(CallbackData, prefix="doc"):
-#     doctor_id: int
-#
-class SlotClick(CallbackData, prefix="slot"):
-    slot_id: int
-    doctor_id: int
-
-class PaymentMethodClick(CallbackData, prefix="pay_method"):
-    slot_id: int
-    method: str
-
-
 class PaginationClick():
     limit: int | None = None
     offset: int | None = None

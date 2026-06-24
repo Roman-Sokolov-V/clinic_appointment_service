@@ -6,9 +6,9 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 # from aiogram.filters.callback_data import CallbackData
 
 from telegram_bot.api.base import ApiService
-from telegram_bot.callback_data_factories import PaginationClickSpecializations, \
-    PaymentMethodClick#, PaginationClickDoctors, SlotClick, PaginationClickSlots
-from telegram_bot.keyboards.common import add_main_menu_button, add_next_button
+from telegram_bot.callback_data_factories import PaginationClickSpecializations# \
+    #PaymentMethodClick#, PaginationClickDoctors, SlotClick, PaginationClickSlots
+#from telegram_bot.keyboards.common import add_main_menu_button, add_next_button
 
 #
 # # Фабрика для вибору конкретної спеціалізації
@@ -136,38 +136,38 @@ reg_log_menu = InlineKeyboardMarkup(
 #     add_main_menu_button(keyboard)
 #     return keyboard.as_markup()
 
-
-def inline_payment_methods(slot_id: int, doctor_id: int) -> InlineKeyboardBuilder:
-    keyboard = InlineKeyboardBuilder()
-
-    keyboard.add(
-        InlineKeyboardButton(
-            text="💳 Оплата карткою (Stripe)",
-            callback_data=PaymentMethodClick(slot_id=slot_id, method="STRIPE").pack()
-        ),
-        InlineKeyboardButton(
-            text="💳 Оплата карткою (Тут повинен бути інший метод, але реалізовано тільки Stripe)",
-            callback_data=PaymentMethodClick(slot_id=slot_id, method="STRIPE").pack()
-        )
-    )
-
-    keyboard.adjust(1)
-    add_main_menu_button(keyboard)
-    # # Кнопка скасування (повернення назад до лікаря/слотів)
-    # keyboard.row(
-    #     InlineKeyboardButton(
-    #         text="❌ Return to previous menu",
-    #         callback_data="main_menu_keyboard"
-    #     )
-    # )
-
-    keyboard.row(
-        InlineKeyboardButton(
-            text="⬅️ Back to main menu",
-            callback_data="main_menu_keyboard"
-        ),
-    )
-
-
-
-    return keyboard.adjust(1).as_markup()
+#
+# def inline_payment_methods(slot_id: int, doctor_id: int) -> InlineKeyboardBuilder:
+#     keyboard = InlineKeyboardBuilder()
+#
+#     keyboard.add(
+#         InlineKeyboardButton(
+#             text="💳 Оплата карткою (Stripe)",
+#             callback_data=PaymentMethodClick(slot_id=slot_id, method="STRIPE").pack()
+#         ),
+#         InlineKeyboardButton(
+#             text="💳 Оплата карткою (Тут повинен бути інший метод, але реалізовано тільки Stripe)",
+#             callback_data=PaymentMethodClick(slot_id=slot_id, method="STRIPE").pack()
+#         )
+#     )
+#
+#     keyboard.adjust(1)
+#     add_main_menu_button(keyboard)
+#     # # Кнопка скасування (повернення назад до лікаря/слотів)
+#     # keyboard.row(
+#     #     InlineKeyboardButton(
+#     #         text="❌ Return to previous menu",
+#     #         callback_data="main_menu_keyboard"
+#     #     )
+#     # )
+#
+#     keyboard.row(
+#         InlineKeyboardButton(
+#             text="⬅️ Back to main menu",
+#             callback_data="main_menu_keyboard"
+#         ),
+#     )
+#
+#
+#
+#     return keyboard.adjust(1).as_markup()

@@ -4,7 +4,8 @@ from aiogram.types import InlineKeyboardButton, Message
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from telegram_bot.api.base import ApiService
-from telegram_bot.callback_data_factories import PaginationClickDoctors, SlotClick, PaginationClickSlots
+from telegram_bot.appointments.callback_data_factories import SlotClick
+from telegram_bot.callback_data_factories import PaginationClickDoctors, PaginationClickSlots
 from telegram_bot.doctors.callback_data_factores import DocClick
 from telegram_bot.keyboards.common import add_next_button, add_main_menu_button
 

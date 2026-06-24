@@ -1,17 +1,11 @@
-import logging
-
 from aiogram import F, Router
 from aiogram.filters import Command
-from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 from pprint import pprint
 
-import telegram_bot.keyboards as kb
-from telegram_bot.cash_redis.cash_crud import get_access_token, delete_access_token
-from telegram_bot.api.clinic_v1 import ClinicV1
-from telegram_bot.custom_exeptions import NotValidToken
-from telegram_bot.db.crud import get_refresh_token, remove_refresh_token
-from telegram_bot.settings import basic_url
+from telegram_bot.cash_redis.cash_crud import delete_access_token
+from telegram_bot.db.crud import remove_refresh_token
+
 
 router = Router()
 
@@ -47,70 +41,6 @@ async def cmd_hello(message: Message):
 
 
 
-
-
-    # if access_token:
-    #     # Токен є в пам'яті — відразу показуємо меню сервісів
-    #     await message.answer(
-    #         f"Раді бачити вас знову, {message.from_user.first_name}! 👋\n"
-    #         f"Оберіть потрібну послугу клініки:",
-    #         reply_markup=get_main_menu_keyboard()
-    #     )
-    #     return
-    #
-    # # 2. Якщо в пам'яті нема — йдемо в базу даних (Postgres)
-    # refresh = await get_token(user_id)
-    #
-    # if refresh:
-    #
-    #
-    #
-    #
-    #     # Отримуємо access_token
-    #     try:
-    #         access_token = ClinicV1.refresh_token(refresh)
-    #         # Завантажуємо їх в оперативну пам'ять (FSM)
-    #         await state.update_data(
-    #             access_token=access_token,
-    #         )
-    #         await message.answer(
-    #             f"Раді бачити вас знову, {message.from_user.first_name}! 👋\n"
-    #             f"Оберіть потрібну послугу клініки:",
-    #             reply_markup=get_main_menu_keyboard()
-    #         )
-    #     except NotValidToken:
-    #         await message.answer(
-    #             text="Login required",
-    #             reply_markup=get_not_logined_user_menu()
-    #         )
-    #     except Exception:
-    #         await message.answer(
-    #             text="Service not available, try again later",
-    #         )
-    #
-    #
-    #
-    #
-    #     # Завантажуємо їх в оперативну пам'ять (FSM)
-    #     await state.update_data(
-    #         access_token=tokens["access"],
-    #         refresh_token=tokens["refresh"]
-    #     )
-    #
-    #     await message.answer(
-    #         f"Авторизацію відновлено! 🔓\n"
-    #         f"Оберіть потрібну послугу клініки:",
-    #         reply_markup=get_main_menu_keyboard()
-    #     )
-    # else:
-    #     # 3. Токенів немає ніде — користувач неавторизований
-    #     await message.answer(
-    #         f"Вітаємо у нашому боті клініки! 🏥\n\n"
-    #         f"Для того, щоб користуватися сервісами (запис на прийом, перегляд медкарти), "
-    #         f"вам потрібно прив'язати свій акаунт клініки до Телеграму.",
-    #         reply_markup=get_unauthorized_keyboard()
-    #     )
-
 @router.message(Command("help")) # обробник команди яка передається як аргумент декоратора
 async def cmd_help(message: Message):
     await message.answer("this is a help command")
@@ -135,8 +65,3 @@ async def cmd_get_photo(message: Message):
         photo="AgACAgIAAxkBAAMRajEAAWlB9XeDud3CcDlZ18n0QODDAAINHWsbRdCISa9Uf9aA46ZkAQADAgADeAADPAQ", # id фото або посилання
         caption="received photo"
     )
-################################
-#
-# @user.message()
-# async def echo(message: Message):
-#     await message.send_copy(chat_id=message.from_user.id),
