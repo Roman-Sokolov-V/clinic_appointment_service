@@ -1,0 +1,7 @@
+.venv
+.env
+READMY.md
+db.sqlite3
+Dockerfile
+.dockerignor
+

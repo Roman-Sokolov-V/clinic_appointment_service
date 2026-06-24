@@ -7,48 +7,50 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.filters.callback_data import CallbackData
 
 from telegram_bot.api.base import ApiService
+from telegram_bot.callback_data_factories import PaginationClickSpecializations, SpecClick, DocClick, \
+    PaginationClickDoctors, SlotClick, PaginationClickSlots, PaymentMethodClick
 from telegram_bot.keyboards.common import add_main_menu_button, add_next_button
 
-
-# Фабрика для вибору конкретної спеціалізації
-class SpecClick(CallbackData, prefix="spec"):
-    id: int
-
-class DocClick(CallbackData, prefix="doc"):
-    id: int
-
-class SlotClick(CallbackData, prefix="slot"):
-    slot_id: int
-    doctor_id: int
-
-class PaymentMethodClick(CallbackData, prefix="pay_method"):
-    slot_id: int
-    method: str
-
-# Фабрика для пагінації (кнопка "Next")
-class PaginationClick():
-    limit: int | None = None
-    offset: int | None = None
-
-    @classmethod
-    def from_url(cls, next_url: str | None = None) -> 'PaginationClick':
-        if not next_url:
-            return cls(limit=None, offset=None)
-        limit_match = re.search(r"limit=(\d+)", next_url)
-        offset_match = re.search(r"offset=(\d+)", next_url)
-        return cls(
-            limit=int(limit_match.group(1)) if limit_match else None,
-            offset=int(offset_match.group(1)) if offset_match else None
-        )
-
-class PaginationClickSpecializations(PaginationClick, CallbackData, prefix="spec"):
-    pass
-
-class PaginationClickDoctors(PaginationClick, CallbackData, prefix="doc"):
-    pass
-
-class PaginationClickSlots(PaginationClick, CallbackData, prefix="slot"):
-    pass
+#
+# # Фабрика для вибору конкретної спеціалізації
+# class SpecClick(CallbackData, prefix="spec"):
+#     id: int
+#
+# class DocClick(CallbackData, prefix="doc"):
+#     id: int
+#
+# class SlotClick(CallbackData, prefix="slot"):
+#     slot_id: int
+#     doctor_id: int
+#
+# class PaymentMethodClick(CallbackData, prefix="pay_method"):
+#     slot_id: int
+#     method: str
+#
+# # Фабрика для пагінації (кнопка "Next")
+# class PaginationClick():
+#     limit: int | None = None
+#     offset: int | None = None
+#
+#     @classmethod
+#     def from_url(cls, next_url: str | None = None) -> 'PaginationClick':
+#         if not next_url:
+#             return cls(limit=None, offset=None)
+#         limit_match = re.search(r"limit=(\d+)", next_url)
+#         offset_match = re.search(r"offset=(\d+)", next_url)
+#         return cls(
+#             limit=int(limit_match.group(1)) if limit_match else None,
+#             offset=int(offset_match.group(1)) if offset_match else None
+#         )
+#
+# class PaginationClickSpecializations(PaginationClick, CallbackData, prefix="spec"):
+#     pass
+#
+# class PaginationClickDoctors(PaginationClick, CallbackData, prefix="doc"):
+#     pass
+#
+# class PaginationClickSlots(PaginationClick, CallbackData, prefix="slot"):
+#     pass
 
 main_menu_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
@@ -81,7 +83,7 @@ def inline_specializations(specializations: list[dict], next: str | None = None)
         keyboard.add(
             InlineKeyboardButton(
                 text=sp["name"],
-                callback_data=SpecClick(id=sp["id"]).pack()
+                callback_data=SpecClick(spec_id=sp["id"], spec_name=sp["name"]).pack()
             )
         )
     keyboard.adjust(1)
@@ -102,7 +104,7 @@ def inline_doctors(doctors: list[dict], next: str | None = None):
         keyboard.add(
             InlineKeyboardButton(
                 text=f"{doc["first_name"]} {doc['last_name']}",
-                callback_data=DocClick(id=doc["id"]).pack()
+                callback_data=DocClick(doctor_id=doc["id"]).pack()
             )
         )
     keyboard.adjust(1)
@@ -136,7 +138,7 @@ async def inline_slots(doctor_id: int, api_service: ApiService, message: Message
     return keyboard.as_markup()
 
 
-def inline_payment_methods(slot_id: int):
+def inline_payment_methods(slot_id: int, doctor_id: int) -> InlineKeyboardBuilder:
     keyboard = InlineKeyboardBuilder()
 
     keyboard.add(

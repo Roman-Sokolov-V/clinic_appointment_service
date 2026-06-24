@@ -145,14 +145,16 @@ async def handle_specialization_click(
     await callback.answer()
 
     # Дістаємо ID спеціалізації прямо з об'єкта callback_data 👇
-    spec_id = callback_data.id
+    spec_id = callback_data.spec_id
+    spec_name = callback_data.spec_name
 
-    await callback.message.answer(f"Ви обрали спеціалізацію з ID: {spec_id}. Шукаю лікарів...")
+
+    await callback.message.answer(f"Ви обрали спеціалізацію: {spec_name}. Шукаю лікарів...")
     await callback.message.answer("Ще трошечки")
 
     doctors, next = await api_service.get_doctors(specialization_id=spec_id)
     await callback.message.answer(
-        text=f"Список докторів, клікнувши на обраного доктора отримаєте список вільних слотів",
+        text=f"Список докторів з спеціалізацією {spec_name}, клікнувши на обраного доктора отримаєте список вільних слотів",
         reply_markup=inline_doctors(doctors, next)
     )
 
@@ -207,7 +209,7 @@ async def show_doctor_detail(
 
     await callback.answer()
 
-    doctor_id = callback_data.id
+    doctor_id = callback_data.doctor_id
 
     doctor = await api_service.get_doctor_details(doctor_id=doctor_id)
 
@@ -230,10 +232,10 @@ async def make_appointment(callback: CallbackQuery, callback_data: SlotClick):
     logging.info("Start Make appointment------------------------------")
     await callback.answer()
     slot_id=callback_data.slot_id
-    docror_id = callback_data.doctor_id
+    doctor_id = callback_data.doctor_id
     await callback.message.edit_text(
         text="Choose payment method",
-        reply_markup=inline_payment_methods(slot_id=slot_id, docror_id=docror_id),
+        reply_markup=inline_payment_methods(slot_id=slot_id, doctor_id=doctor_id),
         parse_mode="Markdown"
     )
 

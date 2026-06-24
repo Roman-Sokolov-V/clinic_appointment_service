@@ -10,7 +10,7 @@ from telegram_bot.settings import TELEGRAM_TOKEN
 from telegram_bot.cash_redis.pool import init_redis_pool, close_redis_pool
 from telegram_bot.db.pool import init_db_pool, close_db_pool
 from telegram_bot.callbacks import router as callback_router
-from telegram_bot.handlers import start_router, user_router, doctor_router, specializations_router
+from telegram_bot.handlers import start_router, user_router
 
 
 dotenv.load_dotenv()
@@ -31,9 +31,9 @@ async def main():
     dp.include_routers(
         start_router,
         user_router,
-        doctor_router,
+
         callback_router,
-        specializations_router
+
     )
     try:
         await dp.start_polling(bot, pool=pool, redis_client=redis_client)
