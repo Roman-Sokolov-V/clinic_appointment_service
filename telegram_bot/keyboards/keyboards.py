@@ -7,7 +7,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.filters.callback_data import CallbackData
 
 from telegram_bot.api.base import ApiService
-from telegram_bot.keyboards.common import add_main_menu_button
+from telegram_bot.keyboards.common import add_main_menu_button, add_next_button
 
 
 # Фабрика для вибору конкретної спеціалізації
@@ -86,12 +86,7 @@ def inline_specializations(specializations: list[dict], next: str | None = None)
         )
     keyboard.adjust(1)
     if next:
-        keyboard.row(
-            InlineKeyboardButton(
-                text="Show next specializations ⏭️",
-                callback_data=PaginationClickSpecializations.from_url(next_url=next).pack()
-            )
-        )
+        add_next_button(keyboard, PaginationClickSpecializations.from_url(next_url=next).pack(), "specializations")
     add_main_menu_button(keyboard)
     return keyboard.as_markup()
 
@@ -112,12 +107,8 @@ def inline_doctors(doctors: list[dict], next: str | None = None):
         )
     keyboard.adjust(1)
     if next:
-        keyboard.row(
-            InlineKeyboardButton(
-                text="Show next doctors ⏭️",
-                callback_data=PaginationClickDoctors.from_url(next_url=next).pack()
-            )
-        )
+        add_next_button(keyboard, PaginationClickDoctors.from_url(next_url=next).pack()), "doctors")
+
     add_main_menu_button(keyboard)
     return keyboard.as_markup()
 
@@ -140,12 +131,7 @@ async def inline_slots(doctor_id: int, api_service: ApiService, message: Message
     keyboard.adjust(1)
     if next:
         logging.info(f"Next slots: {next}")
-        keyboard.row(
-            InlineKeyboardButton(
-                text="Show next slots ⏭️",
-                callback_data=PaginationClickSlots.from_url(next_url=next).pack()
-            )
-        )
+        add_next_button(keyboard, PaginationClickSlots.from_url(next_url=next).pack(), "slots")
     add_main_menu_button(keyboard)
     return keyboard.as_markup()
 
