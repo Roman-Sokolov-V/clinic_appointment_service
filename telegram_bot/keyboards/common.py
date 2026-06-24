@@ -20,10 +20,11 @@ def add_next_button(builder: InlineKeyboardBuilder, callback_data: str, obj: str
     )
     return builder
 
-# def add_prev_menu_button(builder: InlineKeyboardBuilder, callback_data: str = "prev_menu") -> InlineKeyboardBuilder:
-#     builder.row(
-#         InlineKeyboardButton(
-#             text=f""
-#         )
+def add_prev_menu_button(builder: InlineKeyboardBuilder, callback_data: str) -> InlineKeyboardBuilder:
+    builder.row(
+        InlineKeyboardButton(
+            text=f"⬅️Back to previous menu",
+            callback_data=callback_data
+        )
 
 )

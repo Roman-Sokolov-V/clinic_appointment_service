@@ -107,7 +107,7 @@ def inline_doctors(doctors: list[dict], next: str | None = None):
         )
     keyboard.adjust(1)
     if next:
-        add_next_button(keyboard, PaginationClickDoctors.from_url(next_url=next).pack()), "doctors")
+        add_next_button(keyboard, PaginationClickDoctors.from_url(next_url=next).pack(), "doctors")
 
     add_main_menu_button(keyboard)
     return keyboard.as_markup()
