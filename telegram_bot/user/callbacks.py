@@ -1,28 +1,15 @@
 import logging
 
 from aiogram import Router, F
-from aiogram.types import CallbackQuery, Message, message
-from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import StatesGroup, State
+from aiogram.types import CallbackQuery, Message
 
-# from telegram_bot.settings import basic_url
 from telegram_bot.api import get_api
-#from telegram_bot.callback_data_factories import SlotClick
+from telegram_bot.cash_redis.cash_crud import save_access_token
 from telegram_bot.custom_exeptions import RegistrationFailed, NoTokenFound, BadRequest
 from telegram_bot.db.crud import save_refresh_token
-from telegram_bot.cash_redis.cash_crud import save_access_token, get_access_token
-from telegram_bot.keyboards.keyboards import (
-    # SlotClick,
-    # SpecClick,
-    # PaginationClickSpecializations,
-    # inline_specializations,
-    main_menu_keyboard,
-    # inline_doctors,
-    # inline_slots,
-    # DocClick,
-    #inline_payment_methods,
-    #PaymentMethodClick
-)
+from telegram_bot.keyboards.keyboards import main_menu_keyboard
 
 router = Router()
 api_class = get_api()
@@ -36,9 +23,6 @@ class Log(StatesGroup):
     email = State()
     password = State()
 
-class Book(StatesGroup):
-    slot_id = State()
-    payment_method = State()
 
 @router.callback_query(F.data == "register_in_clinic")
 async def register_in_clinic(callback: CallbackQuery, state: FSMContext):
@@ -128,13 +112,3 @@ async def log_third(message: Message, state: FSMContext, pool, redis_client):
         f"Оберіть потрібну послугу клініки:",
         reply_markup=main_menu_keyboard
     )
-
-
-@router.callback_query(F.data == "main_menu_keyboard")
-async def to_main_menu(callback: CallbackQuery):
-    await callback.answer()
-    await callback.message.answer(
-        text="🏥 Welcome to the Clinic Main Menu.\nSelect an option below:",
-        reply_markup=main_menu_keyboard
-    )
-    await callback.message.delete()

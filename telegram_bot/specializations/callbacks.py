@@ -3,7 +3,7 @@ import logging
 from aiogram import Router
 from aiogram.types import CallbackQuery
 
-from telegram_bot.callback_data_factories import PaginationClickSpecializations
+from telegram_bot.common_callback_data_factories import PaginationClickSpecializations
 from telegram_bot.cash_redis.cash_crud import get_access_token
 from telegram_bot.doctors.keyboards import inline_doctors
 #from telegram_bot.keyboards.keyboards import inline_doctors

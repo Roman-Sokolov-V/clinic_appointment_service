@@ -9,11 +9,11 @@ from telegram_bot.middlewares import ClinicApiMiddleware
 from telegram_bot.settings import TELEGRAM_TOKEN
 from telegram_bot.cash_redis.pool import init_redis_pool, close_redis_pool
 from telegram_bot.db.pool import init_db_pool, close_db_pool
-from telegram_bot.callbacks import router as callback_router
-from telegram_bot.handlers import start_router, user_router
+from telegram_bot.common_callbacks import router as callback_router
 from telegram_bot.specializations import specializations_callback_router
 from telegram_bot.doctors import doctor_callback_router
 from telegram_bot.appointments import appointment_callback_router
+from telegram_bot.user import user_router
 
 
 dotenv.load_dotenv()
@@ -32,7 +32,6 @@ async def main():
     dp.message.middleware(ClinicApiMiddleware())
 
     dp.include_routers(
-        start_router,
         user_router,
         callback_router,
         specializations_callback_router,

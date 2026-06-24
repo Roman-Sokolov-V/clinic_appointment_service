@@ -6,7 +6,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 # from aiogram.filters.callback_data import CallbackData
 
 from telegram_bot.api.base import ApiService
-from telegram_bot.callback_data_factories import PaginationClickSpecializations# \
+from telegram_bot.common_callback_data_factories import PaginationClickSpecializations# \
     #PaymentMethodClick#, PaginationClickDoctors, SlotClick, PaginationClickSlots
 #from telegram_bot.keyboards.common import add_main_menu_button, add_next_button
 
