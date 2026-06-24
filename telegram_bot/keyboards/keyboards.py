@@ -7,7 +7,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.filters.callback_data import CallbackData
 
 from telegram_bot.api.base import ApiService
-from telegram_bot.callback_data_factories import PaginationClickSpecializations, SpecClick, DocClick, \
+from telegram_bot.callback_data_factories import PaginationClickSpecializations, DocClick, \
     PaginationClickDoctors, SlotClick, PaginationClickSlots, PaymentMethodClick
 from telegram_bot.keyboards.common import add_main_menu_button, add_next_button
 
@@ -73,24 +73,24 @@ reg_log_menu = InlineKeyboardMarkup(
     input_field_placeholder= "Select a menu item"
 )
 
-
-def inline_specializations(specializations: list[dict], next: str | None = None):
-    """
-    функція для динамічного створення кнопок спеціальностей, і кнопки наступної порції пагінованих даних
-    """
-    keyboard = InlineKeyboardBuilder()
-    for sp in specializations:
-        keyboard.add(
-            InlineKeyboardButton(
-                text=sp["name"],
-                callback_data=SpecClick(spec_id=sp["id"], spec_name=sp["name"]).pack()
-            )
-        )
-    keyboard.adjust(1)
-    if next:
-        add_next_button(keyboard, PaginationClickSpecializations.from_url(next_url=next).pack(), "specializations")
-    add_main_menu_button(keyboard)
-    return keyboard.as_markup()
+#
+# def inline_specializations(specializations: list[dict], next: str | None = None):
+#     """
+#     функція для динамічного створення кнопок спеціальностей, і кнопки наступної порції пагінованих даних
+#     """
+#     keyboard = InlineKeyboardBuilder()
+#     for sp in specializations:
+#         keyboard.add(
+#             InlineKeyboardButton(
+#                 text=sp["name"],
+#                 callback_data=SpecClick(spec_id=sp["id"], spec_name=sp["name"]).pack()
+#             )
+#         )
+#     keyboard.adjust(1)
+#     if next:
+#         add_next_button(keyboard, PaginationClickSpecializations.from_url(next_url=next).pack(), "specializations")
+#     add_main_menu_button(keyboard)
+#     return keyboard.as_markup()
 
 
 

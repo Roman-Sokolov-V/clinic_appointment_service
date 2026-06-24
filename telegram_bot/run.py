@@ -11,6 +11,7 @@ from telegram_bot.cash_redis.pool import init_redis_pool, close_redis_pool
 from telegram_bot.db.pool import init_db_pool, close_db_pool
 from telegram_bot.callbacks import router as callback_router
 from telegram_bot.handlers import start_router, user_router
+from telegram_bot.specializations import specializations_callback_router
 
 
 dotenv.load_dotenv()
@@ -32,6 +33,7 @@ async def main():
         start_router,
         user_router,
         callback_router,
+        specializations_callback_router,
 
     )
     try:

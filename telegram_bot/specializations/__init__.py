@@ -1,0 +1,1 @@
+from .callbacks import router as specializations_callback_router
