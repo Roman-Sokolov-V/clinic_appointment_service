@@ -31,7 +31,6 @@ async def main():
     dp.include_routers(
         start_router,
         user_router,
-
         callback_router,
 
     )
