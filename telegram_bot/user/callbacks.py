@@ -9,7 +9,7 @@ from telegram_bot.api import get_api
 from telegram_bot.cash_redis.cash_crud import save_access_token
 from telegram_bot.custom_exeptions import RegistrationFailed, NoTokenFound, BadRequest
 from telegram_bot.db.crud import save_refresh_token
-from telegram_bot.keyboards.keyboards import main_menu_keyboard
+from telegram_bot.keyboards import main_menu_keyboard
 
 router = Router()
 api_class = get_api()
