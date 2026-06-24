@@ -1,10 +1,9 @@
 import logging
-import re
-from operator import add
+# import re
 
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from aiogram.filters.callback_data import CallbackData
+# from aiogram.filters.callback_data import CallbackData
 
 from telegram_bot.api.base import ApiService
 from telegram_bot.callback_data_factories import PaginationClickSpecializations, DocClick, \
