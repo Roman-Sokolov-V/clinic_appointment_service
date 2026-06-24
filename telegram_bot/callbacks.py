@@ -10,7 +10,7 @@ from telegram_bot.api import get_api
 from telegram_bot.custom_exeptions import RegistrationFailed, NoTokenFound, BadRequest
 from telegram_bot.db.crud import save_refresh_token
 from telegram_bot.cash_redis.cash_crud import save_access_token, get_access_token
-from telegram_bot.keyboards import (
+from telegram_bot.keyboards.keyboards import (
     SlotClick,
     SpecClick,
     PaginationClickSpecializations,
@@ -229,10 +229,11 @@ async def to_main_menu(callback: CallbackQuery):
 async def make_appointment(callback: CallbackQuery, callback_data: SlotClick):
     logging.info("Start Make appointment------------------------------")
     await callback.answer()
-    slot_id=callback_data.id
+    slot_id=callback_data.slot_id
+    docror_id = callback_data.doctor_id
     await callback.message.edit_text(
         text="Choose payment method",
-        reply_markup=inline_payment_methods(slot_id),
+        reply_markup=inline_payment_methods(slot_id=slot_id, docror_id=docror_id),
         parse_mode="Markdown"
     )
 

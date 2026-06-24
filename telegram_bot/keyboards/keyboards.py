@@ -1,11 +1,13 @@
 import logging
 import re
+from operator import add
 
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.filters.callback_data import CallbackData
 
 from telegram_bot.api.base import ApiService
+from telegram_bot.keyboards.common import add_main_menu_button
 
 
 # Фабрика для вибору конкретної спеціалізації
@@ -16,7 +18,8 @@ class DocClick(CallbackData, prefix="doc"):
     id: int
 
 class SlotClick(CallbackData, prefix="slot"):
-    id: int
+    slot_id: int
+    doctor_id: int
 
 class PaymentMethodClick(CallbackData, prefix="pay_method"):
     slot_id: int
@@ -69,8 +72,6 @@ reg_log_menu = InlineKeyboardMarkup(
 )
 
 
-
-
 def inline_specializations(specializations: list[dict], next: str | None = None):
     """
     функція для динамічного створення кнопок спеціальностей, і кнопки наступної порції пагінованих даних
@@ -91,12 +92,7 @@ def inline_specializations(specializations: list[dict], next: str | None = None)
                 callback_data=PaginationClickSpecializations.from_url(next_url=next).pack()
             )
         )
-    keyboard.row(
-        InlineKeyboardButton(
-            text="⬅️ Back to main menu",
-            callback_data="main_menu_keyboard"
-        ),
-    )
+    add_main_menu_button(keyboard)
     return keyboard.as_markup()
 
 
@@ -122,12 +118,7 @@ def inline_doctors(doctors: list[dict], next: str | None = None):
                 callback_data=PaginationClickDoctors.from_url(next_url=next).pack()
             )
         )
-    keyboard.row(
-        InlineKeyboardButton(
-            text="⬅️ Back to main menu",
-            callback_data="main_menu_keyboard"
-        ),
-    )
+    add_main_menu_button(keyboard)
     return keyboard.as_markup()
 
 async def inline_slots(doctor_id: int, api_service: ApiService, message: Message):
@@ -143,7 +134,7 @@ async def inline_slots(doctor_id: int, api_service: ApiService, message: Message
             keyboard.add(
                 InlineKeyboardButton(
                     text=f"start: {slot['start']}  end: {slot['end']}    press to make appointment",
-                    callback_data=SlotClick(id=slot["id"]).pack()
+                    callback_data=SlotClick(slot_id=slot["id"], doctor_id=doctor_id).pack()
                 ),
             )
     keyboard.adjust(1)
@@ -155,12 +146,7 @@ async def inline_slots(doctor_id: int, api_service: ApiService, message: Message
                 callback_data=PaginationClickSlots.from_url(next_url=next).pack()
             )
         )
-    keyboard.row(
-        InlineKeyboardButton(
-            text="⬅️ Back to main menu",
-            callback_data="main_menu_keyboard"
-        ),
-    )
+    add_main_menu_button(keyboard)
     return keyboard.as_markup()
 
 
@@ -178,12 +164,23 @@ def inline_payment_methods(slot_id: int):
         )
     )
 
-    # Кнопка скасування (повернення назад до лікаря/слотів)
+    keyboard.adjust(1)
+    add_main_menu_button(keyboard)
+    # # Кнопка скасування (повернення назад до лікаря/слотів)
+    # keyboard.row(
+    #     InlineKeyboardButton(
+    #         text="❌ Return to previous menu",
+    #         callback_data="main_menu_keyboard"
+    #     )
+    # )
+
     keyboard.row(
         InlineKeyboardButton(
-            text="❌ Скасувати",
+            text="⬅️ Back to main menu",
             callback_data="main_menu_keyboard"
-        )
+        ),
     )
+
+
 
     return keyboard.adjust(1).as_markup()

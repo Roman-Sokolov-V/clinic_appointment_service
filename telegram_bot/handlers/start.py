@@ -4,7 +4,7 @@ from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.types import Message
 
-from telegram_bot.keyboards import main_menu_keyboard, reg_log_menu
+from telegram_bot.keyboards.keyboards import main_menu_keyboard, reg_log_menu
 
 
 router = Router()
