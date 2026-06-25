@@ -261,3 +261,23 @@ class CancelAppointmentSerializer(serializers.Serializer):
             attrs["manual_cancel_fee"] = False
         return attrs
 
+
+class DetailSlotSerializer(serializers.ModelSerializer):
+    doctor = DoctorSerializer(many=False, read_only=True)
+    start = serializers.DateTimeField(format="%d %B, %H:%M")
+    end = serializers.DateTimeField(format="%d %B, %H:%M")
+    class Meta:
+        model = DoctorSlot
+        fields = ('id', 'doctor', 'start', 'end', 'doctor')
+
+
+class GetClientAppointmentsSerializer(serializers.ModelSerializer):
+    slot = DetailSlotSerializer(many=False, read_only=True)
+    class Meta:
+        model = Appointment
+        fields = (
+            "id", "status", "booked_at", "completed_at", "price", "percent_fee", "window_fee", "slot"
+        )
+        read_only_fields = (
+            "id", "status", "booked_at", "completed_at", "price", "percent_fee", "window_fee", "slot"
+        )

@@ -8,3 +8,7 @@ class SlotClick(CallbackData, prefix="slot"):
 class PaymentMethodClick(CallbackData, prefix="pay_method"):
     slot_id: int
     method: str
+
+
+class CancelAppointmentClick(CallbackData, prefix="cancel_appointment"):
+    appointment_id: int

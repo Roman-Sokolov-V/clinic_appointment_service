@@ -47,7 +47,7 @@ async def handle_specialization_click(
 @router.callback_query(PaginationClickSpecializations.filter())
 async def handle_specializations_click(
         callback: CallbackQuery,
-        redis_client,
+        #redis_client,
         api_service,
         callback_data: PaginationClickSpecializations,
 ):
@@ -55,11 +55,11 @@ async def handle_specializations_click(
     робить запит до АПІ отримує дані спеціальностей
 
     """
-    logging.info("Show specializations")
-    user_id = callback.from_user.id
+    # logging.info("Show specializations")
+    # user_id = callback.from_user.id
 
-    access_token = await get_access_token(redis_client=redis_client, user_id=user_id)
-    logging.info( access_token)
+    # access_token = await get_access_token(redis_client=redis_client, user_id=user_id)
+    # logging.info( access_token)
 
     await callback.answer()
 

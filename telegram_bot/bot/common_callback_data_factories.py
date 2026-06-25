@@ -28,3 +28,8 @@ class PaginationClickDoctors(PaginationClick, CallbackData, prefix="docs"):
 class PaginationClickSlots(PaginationClick, CallbackData, prefix="slots"):
     """створює колбек строку для показу слотів"""
     pass
+
+class PaginationClickMyAppointments(PaginationClick, CallbackData, prefix="my_appointments"):
+    """створює колбек строку для показу users appointments"""
+    pass
+

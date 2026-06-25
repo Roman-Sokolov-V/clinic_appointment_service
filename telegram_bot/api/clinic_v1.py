@@ -19,7 +19,7 @@ class ClinicV1():
     appointment_url = basic_url + "clinic/appointments/"
     registration_url = basic_url + "users/"
     get_tokens_url = basic_url + "users/token/"
-    appointments_url = basic_url + "appointments/"
+    appointments_url = basic_url + "clinic/appointments/"
 
 
     def __init__(
@@ -242,6 +242,39 @@ class ClinicV1():
         logging.info(data)
         return data
 
+    async def get_my_appointments(self, url: str = None) -> tuple[list[dict], str | None]:
+        try:
+            resp = await self.request_with_refresh(
+                method="GET",
+                url=url if url else self.appointments_url,
+            )
+            logging.info(resp)
+            data = resp.json()
+            logging.info(data)
+            return data["results"], data["next"]
+        except httpx.RequestError as e:
+            logging.error(e)
+            raise BadRequest(e)
+        except Exception as e:
+            logging.error(e)
+            raise Exception(e)
+
+    async def cancel_appointment(self, appointment_id: int):
+        try:
+            resp = await self.request_with_refresh(
+                method="POST",
+                url=f"{self.appointments_url}{appointment_id}/cancel/",
+            )
+            logging.info(resp)
+            data = resp.json()
+            logging.info(data)
+            return data
+        except httpx.RequestError as e:
+            logging.error(e)
+            raise BadRequest(e)
+        except Exception as e:
+            logging.error(e)
+            raise Exception(e)
 
     async def request_with_refresh(self, method, url, params=None, payload=None) -> httpx.Response:
 
@@ -254,8 +287,6 @@ class ClinicV1():
                     json=payload,
                     headers={"Authorization": f"Bearer {self.access_token}"}
                 )
-                if resp.status_code in (200, 201):
-                    return resp
 
                 if resp.status_code == 401:
                     await self.refresh_access_token()
@@ -266,10 +297,9 @@ class ClinicV1():
                         json=payload,
                         headers={"Authorization": f"Bearer {self.access_token}"}
                     )
-                    if resp.status_code in range(200,201):
-                        return resp
-                    else:
-                        raise BadRequest(f"status code: {resp.status_code}, error message: {resp.text}")
+                else:
+                    return resp
 
             except httpx.RequestError as e:
                 raise BadRequest(str(e))
+

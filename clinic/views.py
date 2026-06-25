@@ -17,7 +17,8 @@ from clinic.models import Specialization, Doctor, DoctorSlot, Appointment
 from clinic.permissions import IsOwnerOrAdmin
 from clinic.serializers import (
     SpecializationSerializer, DoctorSerializer, BulkCreateSlotsSerializer,
-    SlotSerializer, AppointmentSerializer, AppointmentFilterSerializer, CancelAppointmentSerializer
+    SlotSerializer, AppointmentSerializer, AppointmentFilterSerializer, CancelAppointmentSerializer,
+    GetClientAppointmentsSerializer
 )
 from clinic.services.appointment_service import AppointmentService
 
@@ -196,6 +197,8 @@ class AppointmentViewSet(
     def get_serializer_class(self):
         if self.action == "cancel":
             return CancelAppointmentSerializer
+        if self.action in ("list", "retrieve") and not self.request.user.is_staff:
+            return GetClientAppointmentsSerializer
         return  AppointmentSerializer
 
 
