@@ -45,7 +45,7 @@ async def handle_specialization_click(
 
 
 @router.callback_query(PaginationClickSpecializations.filter())
-async def show_specializations(
+async def handle_specializations_click(
         callback: CallbackQuery,
         redis_client,
         api_service,
@@ -69,10 +69,10 @@ async def show_specializations(
     if limit and offset:
         next_url = f"{basic_url}/clinic/specializations/?limit={limit}&offset={offset}"
 
-    results, next = await api_service.get_specializations(url=next_url)
+    results, next_url = await api_service.get_specializations(url=next_url)
 
 
     await callback.message.answer(
         text="specializations:",
-        reply_markup=inline_specializations(results, next)
+        reply_markup=inline_specializations(results, next_url)
     )

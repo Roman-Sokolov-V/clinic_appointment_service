@@ -13,9 +13,8 @@ from telegram_bot.bot.doctors.callback_data_factores import DocClick
 
 def inline_doctors(
         doctors: list[dict],
-        next: str | None = None,
-        prev_callback_data: str | None = None,
-        text: str | None = None) -> InlineKeyboardBuilder:
+        next_url: str | None = None
+) -> InlineKeyboardBuilder:
     """
     викликають:
         common_keyboards.py main_menu_keyboard, add_back_to_main_menu_button
@@ -27,12 +26,12 @@ def inline_doctors(
         keyboard.add(
             InlineKeyboardButton(
                 text=f"{doc["first_name"]} {doc['last_name']}",
-                callback_data=DocClick(doctor_id=doc["id"], spec_id=None).pack()
+                callback_data=DocClick(doctor_id=doc["id"]).pack()
             )
         )
-    keyboard.adjust(1)
-    if next:
-        add_next_button(keyboard, PaginationClickDoctors.from_url(next_url=next).pack(), "doctors")
+    keyboard.adjust(2)
+    if next_url is not None:
+        add_next_button(keyboard, PaginationClickDoctors.from_url(next_url=next_url).pack(), "Show next doctors ⏭️")
 
     add_back_to_main_menu_button(keyboard)
     return keyboard.as_markup()

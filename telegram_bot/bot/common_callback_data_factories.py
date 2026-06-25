@@ -21,7 +21,7 @@ class PaginationClickSpecializations(PaginationClick, CallbackData, prefix="spec
     """створює колбек строку для натискання на кнопку спеціальностей"""
     pass
 
-class PaginationClickDoctors(PaginationClick, CallbackData, prefix="doctors"):
+class PaginationClickDoctors(PaginationClick, CallbackData, prefix="docs"):
     """створює колбек строку для натискання на кнопку доктори"""
     pass
 

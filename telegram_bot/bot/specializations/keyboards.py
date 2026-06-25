@@ -6,7 +6,7 @@ from telegram_bot.bot.common_keyboards import add_next_button, add_back_to_main_
 from telegram_bot.bot.specializations.callback_data_factories import SpecClick
 
 
-def inline_specializations(specializations: list[dict], next: str | None = None):
+def inline_specializations(specializations: list[dict], next_url: str | None = None):
     """
     функція для динамічного створення кнопок спеціальностей, і кнопки наступної порції пагінованих даних
     """
@@ -19,7 +19,7 @@ def inline_specializations(specializations: list[dict], next: str | None = None)
             )
         )
     keyboard.adjust(1)
-    if next:
-        add_next_button(keyboard, PaginationClickSpecializations.from_url(next_url=next).pack(), "Show next specializations ⏭️")
+    if next_url:
+        add_next_button(keyboard, PaginationClickSpecializations.from_url(next_url=next_url).pack(), "Show next specializations ⏭️")
     add_back_to_main_menu_button(keyboard)
     return keyboard.as_markup()

@@ -1,12 +1,11 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from telegram_bot.bot.common_callback_data_factories import PaginationClickSpecializations
-
+from telegram_bot.bot.common_callback_data_factories import PaginationClickSpecializations, PaginationClickDoctors
 
 main_menu_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
-        [InlineKeyboardButton(text="doctors", callback_data="all_doctors"),],
+        [InlineKeyboardButton(text="doctors", callback_data=PaginationClickDoctors().pack()),],
         [InlineKeyboardButton(text="specializations", callback_data=PaginationClickSpecializations().pack()), ],
     ],
     resize_keyboard=True,
