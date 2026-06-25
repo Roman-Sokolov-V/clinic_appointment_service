@@ -2,7 +2,7 @@ from aiogram.types import InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from telegram_bot.bot.appointments.callback_data_factories import PaymentMethodClick
-from telegram_bot.bot.common_keyboards import add_main_menu_button
+from telegram_bot.bot.common_keyboards import add_back_to_main_menu_button
 
 
 def inline_payment_methods(slot_id: int, doctor_id: int) -> InlineKeyboardBuilder:
@@ -20,14 +20,8 @@ def inline_payment_methods(slot_id: int, doctor_id: int) -> InlineKeyboardBuilde
     )
 
     keyboard.adjust(1)
-    add_main_menu_button(keyboard)
-    # # Кнопка скасування (повернення назад до лікаря/слотів)
-    # keyboard.row(
-    #     InlineKeyboardButton(
-    #         text="❌ Return to previous menu",
-    #         callback_data="main_menu_keyboard"
-    #     )
-    # )
+    add_back_to_main_menu_button(keyboard)
+
 
     keyboard.row(
         InlineKeyboardButton(

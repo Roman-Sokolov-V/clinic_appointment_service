@@ -17,11 +17,14 @@ class PaginationClick():
             offset=int(offset_match.group(1)) if offset_match else None
         )
 
-class PaginationClickSpecializations(PaginationClick, CallbackData, prefix="spec"):
+class PaginationClickSpecializations(PaginationClick, CallbackData, prefix="specializations"):
+    """створює колбек строку для натискання на кнопку спеціальностей"""
     pass
 
-class PaginationClickDoctors(PaginationClick, CallbackData, prefix="doc"):
+class PaginationClickDoctors(PaginationClick, CallbackData, prefix="doctors"):
+    """створює колбек строку для натискання на кнопку доктори"""
     pass
 
-class PaginationClickSlots(PaginationClick, CallbackData, prefix="slot"):
+class PaginationClickSlots(PaginationClick, CallbackData, prefix="slots"):
+    """створює колбек строку для показу слотів"""
     pass

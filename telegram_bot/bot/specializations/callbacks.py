@@ -6,7 +6,7 @@ from aiogram.types import CallbackQuery
 from telegram_bot.bot.common_callback_data_factories import PaginationClickSpecializations
 from telegram_bot.cash_redis.cash_crud import get_access_token
 from telegram_bot.bot.doctors.keyboards import inline_doctors
-#from telegram_bot.keyboards.keyboards import inline_doctors
+
 from telegram_bot.settings import basic_url
 from telegram_bot.bot.specializations.callback_data_factories import SpecClick
 from telegram_bot.bot.specializations.keyboards import inline_specializations
@@ -70,8 +70,7 @@ async def show_specializations(
         next_url = f"{basic_url}/clinic/specializations/?limit={limit}&offset={offset}"
 
     results, next = await api_service.get_specializations(url=next_url)
-    if next:
-        await callback.message.answer(text=f"{next}")
+
 
     await callback.message.answer(
         text="specializations:",

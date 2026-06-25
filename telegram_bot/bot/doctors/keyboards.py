@@ -1,18 +1,25 @@
 import logging
 
-from aiogram.types import InlineKeyboardButton, Message
+from aiogram.types import InlineKeyboardButton, Message, CallbackQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from telegram_bot.api.base import ApiService
 from telegram_bot.bot.appointments.callback_data_factories import SlotClick
 from telegram_bot.bot.common_callback_data_factories import PaginationClickDoctors, PaginationClickSlots
-from telegram_bot.bot.common_keyboards import add_next_button, add_main_menu_button
+from telegram_bot.bot.common_keyboards import add_next_button, add_back_to_main_menu_button
 from telegram_bot.bot.doctors.callback_data_factores import DocClick
 
 
 
-def inline_doctors(doctors: list[dict], next: str | None = None):
+def inline_doctors(
+        doctors: list[dict],
+        next: str | None = None,
+        prev_callback_data: str | None = None,
+        text: str | None = None) -> InlineKeyboardBuilder:
     """
+    викликають:
+        common_keyboards.py main_menu_keyboard, add_back_to_main_menu_button
+        specializations/callback_data.py handle_specialization_click
     функція для динамічного створення кнопок докторів, і кнопки наступної порції пагінованих даних
     """
     keyboard = InlineKeyboardBuilder()
@@ -20,18 +27,22 @@ def inline_doctors(doctors: list[dict], next: str | None = None):
         keyboard.add(
             InlineKeyboardButton(
                 text=f"{doc["first_name"]} {doc['last_name']}",
-                callback_data=DocClick(doctor_id=doc["id"]).pack()
+                callback_data=DocClick(doctor_id=doc["id"], spec_id=None).pack()
             )
         )
     keyboard.adjust(1)
     if next:
         add_next_button(keyboard, PaginationClickDoctors.from_url(next_url=next).pack(), "doctors")
 
-    add_main_menu_button(keyboard)
+    add_back_to_main_menu_button(keyboard)
     return keyboard.as_markup()
 
 async def inline_slots(doctor_id: int, api_service: ApiService, message: Message):
-
+    """
+        Запускачі: doctors/callback.py show_doctor_detail
+        За id доктора отримує його вільні слоти, створює кнопку для кожного з них,
+        при натисканні на яку створює callback_data=SlotClick яка обробляється функцією make_appointment
+        """
     slots, next = await api_service.get_doctor_slots(doctor_id=doctor_id)
     logging.info(f"Slots: {slots}")
     keyboard = InlineKeyboardBuilder()
@@ -50,5 +61,5 @@ async def inline_slots(doctor_id: int, api_service: ApiService, message: Message
     if next:
         logging.info(f"Next slots: {next}")
         add_next_button(keyboard, PaginationClickSlots.from_url(next_url=next).pack(), "slots")
-    add_main_menu_button(keyboard)
+    add_back_to_main_menu_button(keyboard)
     return keyboard.as_markup()
