@@ -17,20 +17,22 @@ ENV UV_NO_DEV=1
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv sync --locked --no-install-project --extra clinic
+    uv sync --locked --no-install-project --extra bot
 
 # Копіюємо код
+# 2. Копіюємо суто твій код бота
+#COPY telegram_bot/ ./telegram_bot/
+#COPY pyproject.toml /app
+#COPY uv.lock /app
 COPY . /app
 
 # ця змінна для перемикання режиму вибора бд
 ENV IN_DOCKER=True
 
-# Гарантуємо, що скрипт запуститься всередині Alpine
-RUN chmod +x /app/entrypoint.sh
 
 # Фінальна синхронізація проєкту
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --extra clinic
+    uv sync --locked --extra bot
 
 # Додаємо віртуальне оточення в PATH
 ENV PATH="/app/.venv/bin:$PATH"

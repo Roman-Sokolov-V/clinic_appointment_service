@@ -12,6 +12,9 @@ class Specialization(models.Model):
     code = models.SlugField(max_length=100, unique=True)
     description = models.TextField(null=True, blank=True)
 
+    def __str__(self):
+        return self.name
+
 class Doctor(models.Model):
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)

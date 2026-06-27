@@ -17,7 +17,8 @@ from clinic.models import Specialization, Doctor, DoctorSlot, Appointment
 from clinic.permissions import IsOwnerOrAdmin
 from clinic.serializers import (
     SpecializationSerializer, DoctorSerializer, BulkCreateSlotsSerializer,
-    SlotSerializer, AppointmentSerializer, AppointmentFilterSerializer, CancelAppointmentSerializer
+    SlotSerializer, AppointmentSerializer, AppointmentFilterSerializer, CancelAppointmentSerializer,
+    GetClientAppointmentsSerializer
 )
 from clinic.services.appointment_service import AppointmentService
 
@@ -27,7 +28,7 @@ logger = logging.getLogger("clinic_api")
 class SpecializationViewSet(viewsets.ModelViewSet):
     model = Specialization
     serializer_class = SpecializationSerializer
-    queryset = Specialization.objects.all()
+    queryset = Specialization.objects.all().order_by("name")
 
     def get_permissions(self):
         if self.action in ('list', 'retrieve'):
@@ -118,8 +119,7 @@ class ListBulkCreateSlotsApiView(ListCreateAPIView):
                 queryset = queryset.filter(start__gte=from_.strip())
             if to_ is not None:
                 queryset = queryset.filter(end__lte=to_.strip())
-            if available_only is not None:
-                if available_only.strip().lower() == "true":
+            if not self.request.user.is_staff or (available_only is not None and available_only.strip().lower() == "true"):
                     queryset = queryset.exclude(appointments__status="BOOKED")
 
         return queryset
@@ -197,6 +197,8 @@ class AppointmentViewSet(
     def get_serializer_class(self):
         if self.action == "cancel":
             return CancelAppointmentSerializer
+        if self.action in ("list", "retrieve") and not self.request.user.is_staff:
+            return GetClientAppointmentsSerializer
         return  AppointmentSerializer
 
 
@@ -276,5 +278,4 @@ class AppointmentViewSet(
             {"status": appointment.status},
             status=status.HTTP_200_OK
         )
-    # todo  POST: appointments/<id>/no-show/ - (staff) mark as NO_SHOW (normally set by scheduled job after slot end)
 

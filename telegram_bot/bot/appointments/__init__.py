@@ -1,0 +1,1 @@
+from .callbacks import router as appointment_callback_router

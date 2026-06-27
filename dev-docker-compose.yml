@@ -85,6 +85,58 @@ services:
       rabbitmq:
         condition: service_started
 
+# --- ТЕЛЕГРАМ БОТ: БАЗА ДАНИХ (Refresh-токени) ---
+  telegram_bot_db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file:
+      - telegram_bot/.env
+    volumes:
+      - telegram_bot_db:/var/lib/postgresql/data
+#      # МУВ КОНЕМ: Монтуємо скрипт ініціалізації
+#      - ./telegram_bot/telegram_bot_docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+    ports:
+      - "5436:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+# --- ТЕЛЕГРАМ БОТ: КЕШ (Access-токени в оперативці) ---
+  redis:
+    image: redis:8.6.4-alpine
+    restart: unless-stopped
+    env_file:
+      - telegram_bot/.env
+    command: redis-server --loglevel warning
+    # --requirepass $$REDIS_PASSWORD
+
+# --- СЕРВІС ТЕЛЕГРАМ БОТА ---
+  telegram_bot:
+    build:
+      context: .
+      dockerfile: telegram_bot/Dockerfile
+    env_file:
+      - telegram_bot/.env
+    working_dir: /app
+    volumes:
+      - .:/app
+      - /app/.venv
+    command: uv run -m telegram_bot.run
+    depends_on:
+      clinic:
+        condition: service_started
+      redis:
+        condition: service_started
+      telegram_bot_db:
+        condition: service_healthy
+    restart: unless-stopped
+
+
 volumes:
   clinic_db:
   rabbitmq_data:
+  #для телеграм бота
+  telegram_bot_db:
